@@ -1,5 +1,5 @@
 /* Batch Cooking — minimal offline cache (HTML/JSON/icons/manifest). */
-const CACHE = "batchcooking-v1";
+const CACHE = "batchcooking-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,7 +9,8 @@ const ASSETS = [
   "./icons/icon-180.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./PROMPT_RECIPES.md"
+  "./PROMPT_RECIPES.md",
+  "./sw.js"
 ];
 
 self.addEventListener("install", (event) => {

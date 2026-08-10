@@ -143,6 +143,40 @@
   }
   .week-note strong { color: var(--freeze); font-weight: 600; display: block; margin-bottom: 6px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-family: 'IBM Plex Mono', monospace; }
 
+  .prompt-card {
+    background: rgba(53,208,186,0.1);
+    border: 1px solid rgba(53,208,186,0.35);
+    border-radius: 16px;
+    padding: 18px 18px 16px;
+    margin-bottom: 24px;
+    max-width: 820px;
+  }
+  .prompt-card .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--freeze); margin-bottom: 8px; font-weight: 600;
+  }
+  .prompt-card p {
+    margin: 0 0 14px; color: var(--text); font-size: 15px; line-height: 1.45;
+  }
+  .prompt-card .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .prompt-card button {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px;
+    min-height: 52px; padding: 14px 18px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  }
+  .prompt-card button.primary {
+    background: var(--freeze); color: #052b26; border-color: transparent;
+  }
+  .prompt-card pre {
+    display: none; margin: 14px 0 0; max-height: 220px; overflow: auto;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px; font-size: 12px; line-height: 1.4; white-space: pre-wrap;
+    color: var(--text-muted); font-family: 'IBM Plex Mono', monospace;
+  }
+  .prompt-card.expanded pre { display: block; }
+  .prompt-card .status { font-size: 13px; color: var(--freeze); margin-top: 10px; min-height: 1.2em; }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
@@ -355,6 +389,7 @@
     <label for="fileInput">JSON importieren</label>
     <input type="file" id="fileInput" accept="application/json">
     <button type="button" id="loadDemoBtn">Beispielrezepte laden</button>
+    <button type="button" id="copyJsonBtn">JSON kopieren</button>
     <button type="button" id="exportBtn">JSON exportieren</button>
     <a class="primary" href="kochmodus.html">Kochmodus starten →</a>
   </div>
@@ -366,6 +401,17 @@
       <span class="val" id="servingsVal">5</span>
       <button type="button" id="servingsPlus" aria-label="Mehr">+</button>
     </div>
+  </div>
+
+  <div class="prompt-card" id="promptCard">
+    <div class="eyebrow">Prompt für Claude</div>
+    <p>Kopiere den Schema-Prompt, um neue Wochenrezepte im richtigen JSON-Format erzeugen zu lassen.</p>
+    <div class="actions">
+      <button type="button" class="primary" id="copyPromptBtn">Prompt kopieren</button>
+      <button type="button" id="togglePromptBtn">Anzeigen</button>
+    </div>
+    <pre id="promptPreview">Lade …</pre>
+    <div class="status" id="promptStatus" aria-live="polite"></div>
   </div>
 
   <div class="week-note" id="weekNoteBox" hidden>
@@ -405,8 +451,42 @@
   const fileInput = document.getElementById("fileInput");
   const loadDemoBtn = document.getElementById("loadDemoBtn");
   const exportBtn = document.getElementById("exportBtn");
+  const copyJsonBtn = document.getElementById("copyJsonBtn");
+  const copyPromptBtn = document.getElementById("copyPromptBtn");
+  const togglePromptBtn = document.getElementById("togglePromptBtn");
+  const promptCard = document.getElementById("promptCard");
+  const promptPreview = document.getElementById("promptPreview");
+  const promptStatus = document.getElementById("promptStatus");
   let menuData = { recipes: [] };
   let targetServings = 5;
+  let promptText = "";
+
+  async function ensurePromptLoaded() {
+    if (promptText) return promptText;
+    try {
+      const res = await fetch("PROMPT_RECIPES.md", { cache: "no-store" });
+      if (!res.ok) throw new Error("not found");
+      promptText = await res.text();
+    } catch (e) {
+      promptText = "Prompt-Datei PROMPT_RECIPES.md nicht gefunden. Bitte im Repo öffnen.";
+    }
+    promptPreview.textContent = promptText;
+    return promptText;
+  }
+
+  async function copyText(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      promptStatus.textContent = okMsg;
+    } catch (e) {
+      // Fallback for older Safari
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); promptStatus.textContent = okMsg; }
+      catch (err) { promptStatus.textContent = "Kopieren fehlgeschlagen"; }
+      ta.remove();
+    }
+  }
 
   function freezeIcon() {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -708,6 +788,20 @@
     a.href = url; a.download = name; a.click();
     URL.revokeObjectURL(url);
   });
+
+  copyJsonBtn.addEventListener("click", () => {
+    copyText(JSON.stringify(menuData, null, 2), "JSON in die Zwischenablage kopiert.");
+  });
+  copyPromptBtn.addEventListener("click", async () => {
+    const text = await ensurePromptLoaded();
+    copyText(text, "Prompt kopiert — in Claude einfügen.");
+  });
+  togglePromptBtn.addEventListener("click", async () => {
+    await ensurePromptLoaded();
+    promptCard.classList.toggle("expanded");
+    togglePromptBtn.textContent = promptCard.classList.contains("expanded") ? "Verbergen" : "Anzeigen";
+  });
+  ensurePromptLoaded();
 
   document.getElementById("servingsMinus").addEventListener("click", () => {
     targetServings = Math.max(1, targetServings - 1);

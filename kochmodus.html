@@ -208,17 +208,17 @@
 
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 
-  /* Main focus card */
+  /* Main focus card — fill the stage, less wasted margin on tablets */
   .stage {
     flex: 1; min-height: 0; overflow-y: auto; display: flex;
-    padding: clamp(12px, 2.5vw, 32px) var(--pad-x);
+    padding: clamp(8px, 1.5vw, 16px) var(--pad-x);
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
   .card {
-    flex: 1; display: flex; flex-direction: column; min-width: 0;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
-    border-top-width: 8px; padding: clamp(16px, 3.5vw, 44px); position: relative;
+    flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    border-top-width: 8px; padding: clamp(14px, 2.5vw, 28px); position: relative;
   }
   .card.a { border-top-color: var(--accent-a); }
   .card.b { border-top-color: var(--accent-b); }
@@ -355,9 +355,22 @@
     display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; align-items: center;
   }
   .prep-all-btn {
-    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(15px, 3.5vw, 18px);
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(16px, 3.5vw, 19px);
     background: rgba(53,208,186,0.14); color: var(--freeze); border: 1px solid rgba(53,208,186,0.35);
-    border-radius: 12px; padding: 14px 18px; cursor: pointer; min-height: 56px;
+    border-radius: 14px; padding: 16px 22px; cursor: pointer; min-height: 58px;
+    width: 100%; max-width: 420px;
+  }
+
+  .prep-list {
+    display: flex; flex-direction: column; gap: 10px; margin: 0 0 auto;
+  }
+  @media (min-width: 900px) and (min-height: 500px) {
+    .prep-list.grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      align-content: start;
+    }
   }
 
   /* Bottom navigation: three big fixed buttons */
@@ -461,16 +474,53 @@
   }
   #tipOverlay .tip-text { font-size: clamp(17px, 3vw, 20px); line-height: 1.5; color: var(--text); }
 
-  /* iOS haptic fallback: brief full-screen flash when a timer rings */
+  /* iOS haptic fallback + full-screen timer-done alert */
   #alarmFlash {
     position: fixed; inset: 0; pointer-events: none; z-index: 80;
     background: var(--accent-b); opacity: 0; transition: opacity 0.12s linear;
   }
-  #alarmFlash.on { opacity: 0.28; }
+  #alarmFlash.on { opacity: 0.35; }
+
+  #timerDoneOverlay {
+    position: fixed; inset: 0; z-index: 90;
+    display: none; align-items: center; justify-content: center;
+    padding: calc(24px + var(--safe-t)) calc(24px + var(--safe-r)) calc(24px + var(--safe-b)) calc(24px + var(--safe-l));
+    background: rgba(8, 10, 14, 0.92);
+    backdrop-filter: blur(6px);
+  }
+  #timerDoneOverlay.active { display: flex; }
+  #timerDoneOverlay .done-panel {
+    width: min(640px, 100%);
+    text-align: center;
+    background: var(--surface);
+    border: 3px solid var(--accent-b);
+    border-radius: 24px;
+    padding: clamp(28px, 5vw, 48px);
+    animation: pulse 0.9s infinite;
+  }
+  #timerDoneOverlay .done-kicker {
+    font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent-b); margin-bottom: 10px;
+  }
+  #timerDoneOverlay .done-title {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+    font-size: clamp(48px, 12vw, 96px); line-height: 1; margin: 0 0 12px; color: var(--text);
+  }
+  #timerDoneOverlay .done-label {
+    font-size: clamp(18px, 4vw, 26px); color: var(--text-muted); margin: 0 0 28px; line-height: 1.35;
+  }
+  #timerDoneOverlay .done-stop {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+    font-size: clamp(20px, 4vw, 26px);
+    min-height: 72px; width: 100%; max-width: 360px;
+    border: none; border-radius: 16px; cursor: pointer;
+    background: var(--accent-b); color: #fff; padding: 18px 28px;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
     #alarmFlash { transition: none !important; }
+    #timerDoneOverlay .done-panel { animation: none !important; }
   }
 
   /* Narrow phones (SE / mini) */
@@ -483,13 +533,20 @@
     .plan-time { width: 100%; text-align: right; }
   }
 
-  /* Short landscape viewports: reclaim vertical space */
+  /* Landscape / tablet: denser layout, less empty chrome */
+  @media (orientation: landscape) {
+    .stage { padding: 6px var(--pad-x); }
+    .card { padding: 12px 16px; border-radius: 14px; }
+    .card-head { margin-bottom: 10px; }
+    .step-text { font-size: clamp(20px, 3.8vw, 34px); margin-bottom: 10px; }
+    .prep-list { margin-bottom: 8px; }
+    .timer-block { margin-top: 12px; }
+  }
+
   @media (max-height: 500px) and (orientation: landscape) {
     :root { --nav-h: 52px; }
     .topbar { gap: 4px; padding-top: calc(var(--safe-t) + 4px); padding-bottom: 4px; }
-    .stage { padding-top: 8px; padding-bottom: 8px; }
-    .card { padding: 14px 16px; border-radius: 14px; }
-    .step-text { font-size: clamp(18px, 4.2vw, 28px); margin-bottom: 10px; }
+    .step-text { font-size: clamp(18px, 4.2vw, 28px); margin-bottom: 8px; }
     .timer-display { font-size: clamp(28px, 7vw, 48px); }
     .card-actions { top: 10px; right: 10px; }
     .icon-btn { width: 44px; height: 44px; }
@@ -661,6 +718,15 @@
 
 <div id="alarmFlash" aria-hidden="true"></div>
 
+<div id="timerDoneOverlay" role="alertdialog" aria-modal="true" aria-labelledby="timerDoneTitle">
+  <div class="done-panel">
+    <div class="done-kicker">Timer</div>
+    <h2 class="done-title" id="timerDoneTitle">FERTIG!</h2>
+    <p class="done-label" id="timerDoneLabel">Zeit abgelaufen</p>
+    <button type="button" class="done-stop" id="timerDoneStop">Stopp / Weiterkochen</button>
+  </div>
+</div>
+
 <script>
 /* =========================================================================
    Batch Cooking — Kochmodus
@@ -705,6 +771,7 @@ const Kochmodus = (function () {
   let audioCtx = null;
   let wakeLock = null;
   let ringing = {};      // stepId -> true (timer finished, alarm active)
+  let alarmDismissed = {}; // stepId -> true (user silenced this finished timer)
   let alarmInterval = null;
   let tickTimer = null;
   let speaking = false;
@@ -1069,17 +1136,33 @@ const Kochmodus = (function () {
   //  DATA LOADING
   // =====================================================================
   async function loadRecipes() {
+    function isStale(data) {
+      const recipes = (data && data.recipes) || [];
+      if (!recipes.length) return true;
+      const hasIng = recipes.some(r => (r.ingredients || []).length > 0);
+      const hasEq = ((data && data.equipment) || []).length > 0;
+      return !hasIng && !hasEq;
+    }
+    let fetched = null;
     try {
       const res = await fetch("recipes.json", { cache: "no-store" });
-      if (res.ok) return await res.json();
-    } catch (e) { /* offline / file:// — fall through to localStorage */ }
+      if (res.ok) fetched = await res.json();
+    } catch (e) { /* offline / file:// */ }
+
+    let saved = null;
     try {
-      const saved = localStorage.getItem(STORAGE_RECIPES);
-      if (saved) return JSON.parse(saved);
+      const raw = localStorage.getItem(STORAGE_RECIPES);
+      if (raw) saved = JSON.parse(raw);
     } catch (e) {
       try { localStorage.removeItem(STORAGE_RECIPES); } catch (_) { /* ignore */ }
     }
-    return null;
+
+    // Prefer fresh file when local data is missing ingredients/equipment (old format).
+    const data = (fetched && (!saved || isStale(saved))) ? fetched : (fetched || saved);
+    if (data && fetched && isStale(saved || {})) {
+      try { localStorage.setItem(STORAGE_RECIPES, JSON.stringify(fetched)); } catch (e) { /* ignore */ }
+    }
+    return data;
   }
 
   function menuSignature(data) {
@@ -1169,27 +1252,53 @@ const Kochmodus = (function () {
     if (!audioCtx) return;
     try {
       if (audioCtx.state === "suspended") audioCtx.resume();
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = "sine"; o.frequency.value = 880;
-      o.connect(g); g.connect(audioCtx.destination);
-      const t = audioCtx.currentTime;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
-      o.start(t); o.stop(t + 0.47);
+      // Two-tone kitchen alarm — louder and harder to miss than a single beep.
+      [880, 1174].forEach((freq, i) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "square";
+        o.frequency.value = freq;
+        o.connect(g); g.connect(audioCtx.destination);
+        const t = audioCtx.currentTime + i * 0.18;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.55, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+        o.start(t); o.stop(t + 0.3);
+      });
     } catch (e) { /* ignore */ }
   }
 
-  // iOS Safari has no navigator.vibrate — use a brief visual flash instead.
+  // iOS haptic fallback + full-screen "FERTIG" panel when a timer rings.
   function flashAlarm() {
     const el = $("alarmFlash");
     if (!el) return;
     el.classList.add("on");
-    setTimeout(() => el.classList.remove("on"), 180);
+    setTimeout(() => el.classList.remove("on"), 220);
   }
 
-  function startAlarm() {
+  function showTimerDoneOverlay(id) {
+    const src = timerIndex[id];
+    const label = (src && src.label) ? src.label : "Zeit abgelaufen";
+    $("timerDoneLabel").textContent = label;
+    $("timerDoneOverlay").classList.add("active");
+  }
+  function hideTimerDoneOverlay() {
+    $("timerDoneOverlay").classList.remove("active");
+  }
+  function silenceAlarms() {
+    for (const id of Object.keys(ringing)) {
+      alarmDismissed[id] = true;
+      delete ringing[id];
+    }
+    stopAlarmIfClear();
+    hideTimerDoneOverlay();
+    updateTimerTexts();
+    renderBgTimers();
+    renderPage();
+  }
+
+  function startAlarm(forId) {
+    if (forId) showTimerDoneOverlay(forId);
     if (alarmInterval) return;
     beep();
     flashAlarm();
@@ -1199,6 +1308,7 @@ const Kochmodus = (function () {
     if (Object.keys(ringing).length === 0 && alarmInterval) {
       clearInterval(alarmInterval); alarmInterval = null;
     }
+    if (Object.keys(ringing).length === 0) hideTimerDoneOverlay();
   }
 
   // =====================================================================
@@ -1300,6 +1410,7 @@ const Kochmodus = (function () {
     const durSec = mins * 60;
     state.timers[id] = { endsAt: Date.now() + durSec * 1000, duration: durSec };
     delete ringing[id];
+    delete alarmDismissed[id];
     saveState();
     renderPage();
   }
@@ -1321,6 +1432,7 @@ const Kochmodus = (function () {
   function resetTimer(id) {
     delete state.timers[id];
     delete ringing[id];
+    delete alarmDismissed[id];
     stopAlarmIfClear();
     saveState();
     renderPage();
@@ -1337,13 +1449,18 @@ const Kochmodus = (function () {
 
   function tick() {
     if (!state) return;
+    let newly = null;
     let anyRing = false;
     for (const id in state.timers) {
       const rem = timerRemaining(id);
-      if (rem === 0 && !ringing[id]) { ringing[id] = true; }
+      if (rem === 0 && !ringing[id] && !alarmDismissed[id]) {
+        ringing[id] = true;
+        newly = id;
+      }
       if (ringing[id]) anyRing = true;
     }
-    if (anyRing) startAlarm();
+    if (newly) startAlarm(newly);
+    else if (anyRing) startAlarm();
     else stopAlarmIfClear();
     updateTimerTexts();
     renderBgTimers();
@@ -1555,6 +1672,7 @@ const Kochmodus = (function () {
     $("skippedNote").classList.remove("show");
     $("prepList").style.display = "flex";
     $("prepToolbar").style.display = "flex";
+    $("prepList").classList.toggle("grid-2", p.items.length >= 4);
 
     $("recipeTag").textContent = isEquipment ? "Geräte" : (isIngredients ? "Zutaten" : "Vorbereitung");
     $("recipeName").textContent = `${p.items.length} ${p.items.length === 1 ? "Sache" : "Sachen"}`;
@@ -2094,6 +2212,14 @@ const Kochmodus = (function () {
       const target = pendingGateTarget != null ? pendingGateTarget : firstCookIndex();
       pendingGateTarget = null;
       goTo(target);
+    });
+
+    $("timerDoneStop").addEventListener("click", () => {
+      unlockAudio();
+      silenceAlarms();
+    });
+    $("timerDoneOverlay").addEventListener("click", (e) => {
+      if (e.target === $("timerDoneOverlay")) silenceAlarms();
     });
 
     $("prevBtn").addEventListener("click", prev);
