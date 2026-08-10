@@ -825,8 +825,10 @@ const Kochmodus = (function () {
       });
     });
   }
-  // A short label for the "Nebenbei" chip (first 2-3 meaningful words).
+  // A short label for the "Nebenbei" chip. Prefer an explicit shortLabel from
+  // the data; otherwise fall back to the first two words of the step text.
   function shortName(step) {
+    if (step.shortLabel) return step.shortLabel;
     return step.text.split(/[\s,]+/).slice(0, 2).join(" ");
   }
 

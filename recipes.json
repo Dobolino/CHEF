@@ -27,11 +27,11 @@
         { "id": "hb-mep-6", "text": "Bulgur abwiegen (375g für 5 Portionen)", "category": "wiegen" }
       ],
       "steps": [
-        { "id": "hb-s1", "recipeId": "tuerkische-haehnchen-bowl", "order": 1, "text": "Bulgur mit Wasser aufkochen, dann Deckel drauf und Hitze reduzieren", "timeMinutes": 15, "activeMinutes": 2, "device": "Topf", "tip": "Deckel drauf lassen, sonst verdampft zu viel Wasser." },
-        { "id": "hb-s2", "recipeId": "tuerkische-haehnchen-bowl", "order": 2, "text": "Hähnchenwürfel scharf anbraten", "timeMinutes": 8, "device": "Pfanne", "temperatureC": null },
-        { "id": "hb-s3", "recipeId": "tuerkische-haehnchen-bowl", "order": 3, "text": "Hähnchen bei mittlerer Hitze fertig garen", "timeMinutes": 6, "device": "Pfanne" },
-        { "id": "hb-s4", "recipeId": "tuerkische-haehnchen-bowl", "order": 4, "text": "Joghurt, Knoblauch und Zitronensaft zur Sauce verrühren", "timeMinutes": 3, "device": "Arbeitsplatte" },
-        { "id": "hb-s5", "recipeId": "tuerkische-haehnchen-bowl", "order": 5, "text": "Bulgur, Hähnchen und Salat anrichten, Sauce separat einpacken", "timeMinutes": 4, "device": "Arbeitsplatte", "tip": "Sauce erst beim Essen dazugeben." }
+        { "id": "hb-s1", "recipeId": "tuerkische-haehnchen-bowl", "order": 1, "text": "Bulgur mit Wasser aufkochen, dann Deckel drauf und Hitze reduzieren", "shortLabel": "Bulgur köchelt", "timeMinutes": 15, "activeMinutes": 2, "device": "Topf", "tip": "Deckel drauf lassen, sonst verdampft zu viel Wasser." },
+        { "id": "hb-s2", "recipeId": "tuerkische-haehnchen-bowl", "order": 2, "text": "Hähnchenwürfel scharf anbraten", "shortLabel": "Hähnchen braten", "timeMinutes": 8, "device": "Pfanne", "temperatureC": null },
+        { "id": "hb-s3", "recipeId": "tuerkische-haehnchen-bowl", "order": 3, "text": "Hähnchen bei mittlerer Hitze fertig garen", "shortLabel": "Hähnchen garen", "timeMinutes": 6, "device": "Pfanne" },
+        { "id": "hb-s4", "recipeId": "tuerkische-haehnchen-bowl", "order": 4, "text": "Joghurt, Knoblauch und Zitronensaft zur Sauce verrühren", "shortLabel": "Sauce rühren", "timeMinutes": 3, "device": "Arbeitsplatte" },
+        { "id": "hb-s5", "recipeId": "tuerkische-haehnchen-bowl", "order": 5, "text": "Bulgur, Hähnchen und Salat anrichten, Sauce separat einpacken", "shortLabel": "Bowl anrichten", "timeMinutes": 4, "device": "Arbeitsplatte", "tip": "Sauce erst beim Essen dazugeben." }
       ]
     },
     {
@@ -59,11 +59,11 @@
         { "id": "tr-mep-6", "text": "2 Limetten auspressen", "category": "abmessen" }
       ],
       "steps": [
-        { "id": "tr-s1", "recipeId": "mexikanischer-thunfisch-reis", "order": 1, "text": "Reis abspülen und mit Wasser aufkochen", "timeMinutes": 15, "activeMinutes": 2, "device": "Topf", "tip": "Kurz abspülen, sonst klebt der Reis später." },
-        { "id": "tr-s2", "recipeId": "mexikanischer-thunfisch-reis", "order": 2, "text": "Paprika und Zwiebel andünsten", "timeMinutes": 6, "device": "Pfanne" },
-        { "id": "tr-s3", "recipeId": "mexikanischer-thunfisch-reis", "order": 3, "text": "Mais, Bohnen und Gewürze dazugeben", "timeMinutes": 5, "device": "Pfanne" },
-        { "id": "tr-s4", "recipeId": "mexikanischer-thunfisch-reis", "order": 4, "text": "Thunfisch unterheben und kurz erwärmen", "timeMinutes": 3, "device": "Pfanne" },
-        { "id": "tr-s5", "recipeId": "mexikanischer-thunfisch-reis", "order": 5, "text": "Anrichten mit Limette und Koriander", "timeMinutes": 4, "device": "Arbeitsplatte" }
+        { "id": "tr-s1", "recipeId": "mexikanischer-thunfisch-reis", "order": 1, "text": "Reis abspülen und mit Wasser aufkochen", "shortLabel": "Reis köchelt", "timeMinutes": 15, "activeMinutes": 2, "device": "Topf", "tip": "Kurz abspülen, sonst klebt der Reis später." },
+        { "id": "tr-s2", "recipeId": "mexikanischer-thunfisch-reis", "order": 2, "text": "Paprika und Zwiebel andünsten", "shortLabel": "Gemüse dünsten", "timeMinutes": 6, "device": "Pfanne" },
+        { "id": "tr-s3", "recipeId": "mexikanischer-thunfisch-reis", "order": 3, "text": "Mais, Bohnen und Gewürze dazugeben", "shortLabel": "Bohnen & Gewürze", "timeMinutes": 5, "device": "Pfanne" },
+        { "id": "tr-s4", "recipeId": "mexikanischer-thunfisch-reis", "order": 4, "text": "Thunfisch unterheben und kurz erwärmen", "shortLabel": "Thunfisch erwärmen", "timeMinutes": 3, "device": "Pfanne" },
+        { "id": "tr-s5", "recipeId": "mexikanischer-thunfisch-reis", "order": 5, "text": "Anrichten mit Limette und Koriander", "shortLabel": "Reis anrichten", "timeMinutes": 4, "device": "Arbeitsplatte" }
       ]
     }
   ]
