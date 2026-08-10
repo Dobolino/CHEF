@@ -72,15 +72,21 @@
   }
 
   .tabs {
-    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 22px;
   }
   .tabs a {
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px;
-    padding: 10px 14px; min-height: 44px; border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(15px, 3.6vw, 18px);
+    padding: 16px 12px; min-height: 56px; border-radius: 14px;
     border: 1px solid var(--line); background: var(--surface); color: var(--text-muted);
-    text-decoration: none; display: inline-flex; align-items: center;
+    text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+    text-align: center;
   }
-  .tabs a.active { color: var(--text); border-color: var(--freeze); color: var(--freeze); }
+  .tabs a.active {
+    color: #052b26; background: var(--freeze); border-color: var(--freeze);
+  }
 
   .view { display: none; }
   .view.active { display: block; }
@@ -88,44 +94,46 @@
   .toolbar {
     display: flex;
     gap: 12px;
-    margin-bottom: 28px;
+    margin-bottom: 22px;
     flex-wrap: wrap;
   }
 
   .toolbar button, .toolbar label, .toolbar a {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    padding: 12px 18px;
-    min-height: 44px;
-    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(16px, 3.5vw, 18px);
+    padding: 18px 22px;
+    min-height: 60px;
+    border-radius: 14px;
     border: 1px solid var(--line);
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     text-decoration: none;
+    flex: 1 1 160px;
   }
 
   .toolbar button:active, .toolbar label:active, .toolbar a:active { background: var(--surface-raised); }
-  .toolbar a.primary { background: var(--accent-a); color: #04132e; border-color: transparent; }
+  .toolbar a.primary { background: var(--accent-a); color: #04132e; border-color: transparent; flex: 2 1 220px; }
 
   .servings-bar {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    margin-bottom: 20px; max-width: 420px;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 12px 14px;
+    margin-bottom: 20px; max-width: 520px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px;
   }
-  .servings-bar span.label { font-weight: 600; font-size: 14px; }
-  .servings-bar .ctrl { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .servings-bar span.label { font-weight: 600; font-size: 16px; }
+  .servings-bar .ctrl { display: flex; align-items: center; gap: 10px; margin-left: auto; }
   .servings-bar button {
-    width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--line);
-    background: var(--surface-raised); color: var(--text); font-size: 20px; font-weight: 700; cursor: pointer;
+    width: 56px; height: 56px; border-radius: 14px; border: 1px solid var(--line);
+    background: var(--surface-raised); color: var(--text); font-size: 26px; font-weight: 700; cursor: pointer;
   }
   .servings-bar .val {
-    font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600; min-width: 2ch; text-align: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 600; min-width: 2ch; text-align: center;
   }
 
   .week-note {
@@ -279,35 +287,51 @@
 
   input[type="file"] { display: none; }
 
+  .mise-intro {
+    background: rgba(53,208,186,0.12); border: 1px solid rgba(53,208,186,0.35);
+    color: var(--text); border-radius: 14px; padding: 16px 18px; margin-bottom: 20px;
+    font-size: 16px; line-height: 1.45; max-width: 720px;
+  }
+  .mise-intro strong { color: var(--freeze); }
   .mise-block { margin-bottom: 28px; max-width: 720px; }
   .mise-block h2 {
-    font-family: 'Space Grotesk', sans-serif; font-size: 20px; margin: 0 0 12px;
+    font-family: 'Space Grotesk', sans-serif; font-size: clamp(22px, 5vw, 26px); margin: 0 0 14px;
   }
   .mise-row {
-    display: flex; align-items: center; gap: 12px;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 14px 16px; margin-bottom: 8px; cursor: pointer;
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px 16px; margin-bottom: 10px; cursor: pointer;
+    min-height: 72px;
   }
   .mise-row.checked { opacity: 0.55; }
   .mise-row.checked .mise-text { text-decoration: line-through; }
   .mise-box {
-    width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--line);
+    width: 44px; height: 44px; border-radius: 12px; border: 2px solid var(--line);
     display: inline-flex; align-items: center; justify-content: center; flex: none;
-    color: transparent;
+    color: transparent; background: var(--surface-raised);
   }
   .mise-row.checked .mise-box { background: var(--freeze); border-color: var(--freeze); color: #052b26; }
-  .mise-box svg { width: 18px; height: 18px; }
-  .mise-text { flex: 1; font-size: 16px; line-height: 1.35; }
-  .mise-tags { display: inline-flex; gap: 4px; }
+  .mise-box svg { width: 26px; height: 26px; }
+  .mise-text {
+    flex: 1; font-size: clamp(17px, 4.2vw, 20px); line-height: 1.35; font-weight: 500;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  }
+  .mise-tags { display: inline-flex; gap: 6px; }
   .mise-tags span {
-    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
-    padding: 2px 6px; border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;
+    padding: 4px 8px; border-radius: 6px; min-width: 28px; text-align: center;
   }
   .mise-tags .a { color: var(--accent-a); background: var(--accent-a-dim); }
   .mise-tags .b { color: var(--accent-b); background: var(--accent-b-dim); }
   .cat-label {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--freeze);
-    text-transform: uppercase; letter-spacing: 0.06em; margin: 18px 0 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--freeze);
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 10px; font-weight: 600;
+  }
+  .empty-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .empty-actions button {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px;
+    padding: 18px 24px; min-height: 60px; border-radius: 14px; border: none;
+    background: var(--accent-a); color: #04132e; cursor: pointer;
   }
 </style>
 </head>
@@ -541,15 +565,35 @@
     const root = document.getElementById("miseRoot");
     const recipes = menuData.recipes || [];
     if (!recipes.length) {
-      root.innerHTML = `<div class="empty">Keine Rezepte — zuerst in der Übersicht laden.</div>`;
+      root.innerHTML = `<div class="empty">
+        Noch keine Rezepte geladen.<div class="empty-actions">
+          <button type="button" id="miseLoadDemo">Beispielrezepte laden</button>
+        </div>
+      </div>`;
+      const btn = document.getElementById("miseLoadDemo");
+      if (btn) btn.addEventListener("click", () => loadDemoBtn.click());
       return;
     }
+
     const base = Number(recipes[0].servings) || 5;
     const checks = loadMiseChecks();
-    const factor = targetServings / base;
-
-    let html = "";
     const equipment = menuData.equipment || [];
+    const merged = mergedIngredients(recipes);
+
+    if (!equipment.length && !merged.length) {
+      root.innerHTML = `<div class="empty">
+        Diese gespeicherten Rezepte haben noch keine Zutatenliste (altes Format).
+        <div class="empty-actions">
+          <button type="button" id="miseReloadFresh">Aktuelle Beispielrezepte laden</button>
+        </div>
+      </div>`;
+      const btn = document.getElementById("miseReloadFresh");
+      if (btn) btn.addEventListener("click", () => loadDemoBtn.click());
+      return;
+    }
+
+    let html = `<div class="mise-intro"><strong>${merged.length} Zutaten</strong> · ${equipment.length} Geräte — abhaken, was schon bereitsteht. Mengen gelten für <strong>${targetServings} Portionen</strong>.</div>`;
+
     if (equipment.length) {
       html += `<div class="mise-block"><h2>Geräte & Werkzeug</h2>`;
       equipment.forEach(eq => {
@@ -561,32 +605,32 @@
       html += `</div>`;
     }
 
-    const merged = mergedIngredients(recipes);
     const byCat = {};
     merged.forEach(m => {
       (byCat[m.category] = byCat[m.category] || []).push(m);
     });
-    html += `<div class="mise-block"><h2>Zutaten (zusammengefasst)</h2>`;
-    Object.keys(ING_CATS).forEach(cat => {
-      if (!byCat[cat]) return;
-      html += `<div class="cat-label">${ING_CATS[cat]}</div>`;
-      byCat[cat].forEach(m => {
-        const amount = scaleNumber(m.amount, base, targetServings);
-        const line = `${fmtNum(amount)} ${m.unit} ${m.name}${m.optional ? " (meist da)" : ""}`;
-        html += miseRow(m.id, line, !!checks[m.id], m.recipes);
+    if (merged.length) {
+      html += `<div class="mise-block"><h2>Zutaten (zusammengefasst)</h2>`;
+      Object.keys(ING_CATS).forEach(cat => {
+        if (!byCat[cat]) return;
+        html += `<div class="cat-label">${ING_CATS[cat]}</div>`;
+        byCat[cat].forEach(m => {
+          const amount = scaleNumber(m.amount, base, targetServings);
+          const line = `${fmtNum(amount)} ${m.unit} ${m.name}${m.optional ? " (meist da)" : ""}`;
+          html += miseRow(m.id, line, !!checks[m.id], m.recipes);
+        });
       });
-    });
-    // unknown categories
-    Object.keys(byCat).forEach(cat => {
-      if (ING_CATS[cat]) return;
-      html += `<div class="cat-label">${cat}</div>`;
-      byCat[cat].forEach(m => {
-        const amount = scaleNumber(m.amount, base, targetServings);
-        const line = `${fmtNum(amount)} ${m.unit} ${m.name}`;
-        html += miseRow(m.id, line, !!checks[m.id], m.recipes);
+      Object.keys(byCat).forEach(cat => {
+        if (ING_CATS[cat]) return;
+        html += `<div class="cat-label">${cat}</div>`;
+        byCat[cat].forEach(m => {
+          const amount = scaleNumber(m.amount, base, targetServings);
+          const line = `${fmtNum(amount)} ${m.unit} ${m.name}`;
+          html += miseRow(m.id, line, !!checks[m.id], m.recipes);
+        });
       });
-    });
-    html += `</div>`;
+      html += `</div>`;
+    }
     root.innerHTML = html;
 
     root.querySelectorAll("[data-mise]").forEach(el => {
@@ -601,15 +645,13 @@
   }
 
   function miseRow(id, text, checked, recipeIndexes) {
-    const tags = (recipeIndexes || []).length > 1
+    const tags = (recipeIndexes || []).length
       ? `<span class="mise-tags">${recipeIndexes.map(i =>
           `<span class="${i % 2 ? "b" : "a"}">${String.fromCharCode(65 + i)}</span>`).join("")}</span>`
-      : (recipeIndexes || []).length === 1
-        ? `<span class="mise-tags"><span class="${recipeIndexes[0] % 2 ? "b" : "a"}">${String.fromCharCode(65 + recipeIndexes[0])}</span></span>`
-        : "";
+      : "";
     return `<div class="mise-row ${checked ? "checked" : ""}" data-mise="${escapeHtml(id)}" role="checkbox" aria-checked="${checked}">
       <span class="mise-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-      <span class="mise-text">${escapeHtml(text)} ${tags}</span>
+      <span class="mise-text"><span>${escapeHtml(text)}</span>${tags}</span>
     </div>`;
   }
 
@@ -685,24 +727,31 @@
   window.addEventListener("hashchange", route);
 
   async function boot() {
+    async function fetchDemo() {
+      const res = await fetch("recipes.json", { cache: "no-store" });
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+      localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
+      return data;
+    }
+    function isStale(data) {
+      const recipes = (data && data.recipes) || [];
+      if (!recipes.length) return true;
+      const hasIng = recipes.some(r => (r.ingredients || []).length > 0);
+      const hasEq = ((data && data.equipment) || []).length > 0;
+      return !hasIng && !hasEq;
+    }
     try {
+      let data = null;
       const saved = localStorage.getItem(STORAGE_RECIPES);
       if (saved) {
-        renderRecipes(JSON.parse(saved));
-      } else {
-        try {
-          const res = await fetch("recipes.json", { cache: "no-store" });
-          if (res.ok) {
-            const data = await res.json();
-            localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
-            renderRecipes(data);
-          } else {
-            renderRecipes({ recipes: [] });
-          }
-        } catch (e) {
-          renderRecipes({ recipes: [] });
-        }
+        try { data = JSON.parse(saved); } catch (e) { data = null; }
       }
+      if (!data || isStale(data)) {
+        try { data = await fetchDemo(); }
+        catch (e) { data = data || { recipes: [] }; }
+      }
+      renderRecipes(data);
     } catch (err) {
       try { localStorage.removeItem(STORAGE_RECIPES); } catch (e) { /* ignore */ }
       renderRecipes({ recipes: [] });
