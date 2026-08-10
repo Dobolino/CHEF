@@ -389,7 +389,6 @@
     <label for="fileInput">JSON importieren</label>
     <input type="file" id="fileInput" accept="application/json">
     <button type="button" id="loadDemoBtn">Beispielrezepte laden</button>
-    <button type="button" id="copyJsonBtn">JSON kopieren</button>
     <button type="button" id="exportBtn">JSON exportieren</button>
     <a class="primary" href="kochmodus.html">Kochmodus starten →</a>
   </div>
@@ -451,7 +450,6 @@
   const fileInput = document.getElementById("fileInput");
   const loadDemoBtn = document.getElementById("loadDemoBtn");
   const exportBtn = document.getElementById("exportBtn");
-  const copyJsonBtn = document.getElementById("copyJsonBtn");
   const copyPromptBtn = document.getElementById("copyPromptBtn");
   const togglePromptBtn = document.getElementById("togglePromptBtn");
   const promptCard = document.getElementById("promptCard");
@@ -789,9 +787,6 @@
     URL.revokeObjectURL(url);
   });
 
-  copyJsonBtn.addEventListener("click", () => {
-    copyText(JSON.stringify(menuData, null, 2), "JSON in die Zwischenablage kopiert.");
-  });
   copyPromptBtn.addEventListener("click", async () => {
     const text = await ensurePromptLoaded();
     copyText(text, "Prompt kopiert — in Claude einfügen.");
