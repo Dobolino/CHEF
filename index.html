@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Batch Cooking · Übersicht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14171c;
+    --surface: #1c2029;
+    --surface-raised: #232833;
+    --line: #2c313d;
+    --text: #edeff3;
+    --text-muted: #8b93a3;
+    --accent-a: #4c8dff;
+    --accent-a-dim: #4c8dff33;
+    --accent-b: #ff5c5c;
+    --accent-b-dim: #ff5c5c33;
+    --freeze: #35d0ba;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: clamp(20px, 4vw, 48px);
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  header h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(24px, 3vw, 34px);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  header .week {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .toolbar button, .toolbar label, .toolbar a {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 18px;
+    min-height: 44px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .toolbar button:active, .toolbar label:active, .toolbar a:active { background: var(--surface-raised); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+  }
+
+  .ticket {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .ticket .stripe {
+    height: 6px;
+    width: 100%;
+  }
+
+  .ticket.recipe-a .stripe { background: var(--accent-a); }
+  .ticket.recipe-b .stripe { background: var(--accent-b); }
+
+  .ticket .perforation {
+    height: 0;
+    border-top: 2px dashed var(--line);
+    margin: 0 20px;
+    position: relative;
+  }
+
+  .perforation::before, .perforation::after {
+    content: "";
+    position: absolute;
+    top: -8px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg);
+  }
+  .perforation::before { left: -28px; }
+  .perforation::after { right: -28px; }
+
+  .ticket-head {
+    padding: 20px 20px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .ticket-head h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    margin: 0 0 6px;
+    line-height: 1.25;
+  }
+
+  .ticket.recipe-a .label-tag { color: var(--accent-a); border-color: var(--accent-a-dim); background: var(--accent-a-dim); }
+  .ticket.recipe-b .label-tag { color: var(--accent-b); border-color: var(--accent-b-dim); background: var(--accent-b-dim); }
+
+  .label-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid;
+    text-transform: uppercase;
+  }
+
+  .servings {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .freeze-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--freeze);
+    margin-top: 4px;
+  }
+
+  .freeze-badge svg { width: 14px; height: 14px; }
+
+  .macros {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .macros .cell { text-align: center; }
+  .macros .val { font-size: 17px; font-weight: 600; display: block; }
+  .macros .lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .notes {
+    padding: 16px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .note {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    display: flex;
+    gap: 8px;
+  }
+
+  .note::before {
+    content: "";
+    flex: none;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  .mep-count {
+    padding: 0 20px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-muted);
+    font-size: 15px;
+  }
+
+  input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Batch Cooking</h1>
+    <div class="week" id="weekLabel">Woche</div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <label for="fileInput">
+    JSON importieren
+  </label>
+  <input type="file" id="fileInput" accept="application/json">
+  <button id="loadDemoBtn">Beispielrezepte laden</button>
+  <a href="kochmodus.html" id="cookLink">Kochmodus starten →</a>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+  // Colors are assigned by recipe position, not stored in the JSON.
+  // This keeps the schema extendable beyond exactly two recipes.
+  const ACCENT_CLASSES = ["recipe-a", "recipe-b"];
+
+  const grid = document.getElementById("grid");
+  const weekLabel = document.getElementById("weekLabel");
+  const fileInput = document.getElementById("fileInput");
+  const loadDemoBtn = document.getElementById("loadDemoBtn");
+
+  function freezeIcon() {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M12 2v20M4 7l16 10M20 7L4 17"/>
+    </svg>`;
+  }
+
+  function renderRecipes(data) {
+    grid.innerHTML = "";
+    weekLabel.textContent = data.week ? `Woche ${data.week}` : "";
+
+    if (!data.recipes || data.recipes.length === 0) {
+      grid.innerHTML = `<div class="empty">Keine Rezepte geladen. Importiere eine JSON-Datei oder lade die Beispielrezepte.</div>`;
+      return;
+    }
+
+    data.recipes.forEach((recipe, index) => {
+      const accentClass = ACCENT_CLASSES[index % ACCENT_CLASSES.length];
+      const macros = recipe.macrosPerServing || {};
+
+      const notesHtml = (recipe.notes || [])
+        .map(note => `<div class="note">${escapeHtml(note)}</div>`)
+        .join("");
+
+      const ticket = document.createElement("div");
+      ticket.className = `ticket ${accentClass}`;
+      ticket.innerHTML = `
+        <div class="stripe"></div>
+        <div class="ticket-head">
+          <div>
+            <h2>${escapeHtml(recipe.name)}</h2>
+            <span class="label-tag">Rezept ${String.fromCharCode(65 + index)}</span>
+            ${recipe.freezable ? `<div class="freeze-badge">${freezeIcon()} Einfrierbar</div>` : ""}
+          </div>
+          <div class="servings">${recipe.servings} Portionen</div>
+        </div>
+        <div class="perforation"></div>
+        <div class="macros">
+          <div class="cell"><span class="val">${macros.kcal ?? "–"}</span><span class="lbl">kcal</span></div>
+          <div class="cell"><span class="val">${macros.protein_g ?? "–"}</span><span class="lbl">Prot.</span></div>
+          <div class="cell"><span class="val">${macros.carbs_g ?? "–"}</span><span class="lbl">KH</span></div>
+          <div class="cell"><span class="val">${macros.fat_g ?? "–"}</span><span class="lbl">Fett</span></div>
+          <div class="cell"><span class="val">${macros.fiber_g ?? "–"}</span><span class="lbl">Ball.</span></div>
+        </div>
+        ${notesHtml ? `<div class="notes">${notesHtml}</div>` : ""}
+        <div class="mep-count">${(recipe.misEnPlace || []).length} Mis-en-Place-Schritte · ${(recipe.steps || []).length} Kochschritte</div>
+      `;
+      grid.appendChild(ticket);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      localStorage.setItem("batchcooking_recipes", JSON.stringify(data));
+      renderRecipes(data);
+    } catch (err) {
+      alert("Die Datei ist kein gültiges JSON. Fehler: " + err.message);
+    }
+  });
+
+  loadDemoBtn.addEventListener("click", async () => {
+    const res = await fetch("recipes.json");
+    const data = await res.json();
+    localStorage.setItem("batchcooking_recipes", JSON.stringify(data));
+    renderRecipes(data);
+  });
+
+  // On load: use whatever was last saved in localStorage, otherwise show the empty state.
+  const saved = localStorage.getItem("batchcooking_recipes");
+  if (saved) {
+    renderRecipes(JSON.parse(saved));
+  } else {
+    renderRecipes({ recipes: [] });
+  }
+</script>
+
+</body>
+</html>
