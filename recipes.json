@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.3",
   "week": "2026-W33",
   "recipes": [
     {
@@ -18,20 +18,315 @@
         "Joghurt-Sauce separat einpacken, sonst wird der Bulgur matschig.",
         "Hähnchen portionsweise einfrieren, Sauce jede Woche frisch machen."
       ],
+      "ingredients": [
+        {
+          "id": "hb-ing-chicken",
+          "name": "Hähnchenbrust",
+          "amount": 750,
+          "unit": "g",
+          "category": "fleisch_fisch"
+        },
+        {
+          "id": "hb-ing-joghurt",
+          "name": "Naturjoghurt",
+          "amount": 300,
+          "unit": "g",
+          "category": "milch_ei"
+        },
+        {
+          "id": "hb-ing-bulgur",
+          "name": "Bulgur",
+          "amount": 375,
+          "unit": "g",
+          "category": "trockenes"
+        },
+        {
+          "id": "hb-ing-gurke",
+          "name": "Gurke",
+          "amount": 1,
+          "unit": "Stück",
+          "category": "gemuese"
+        },
+        {
+          "id": "hb-ing-tomaten",
+          "name": "Tomaten",
+          "amount": 3,
+          "unit": "Stück",
+          "category": "gemuese"
+        },
+        {
+          "id": "hb-ing-knoblauch",
+          "name": "Knoblauch",
+          "amount": 2,
+          "unit": "Zehen",
+          "category": "gemuese"
+        },
+        {
+          "id": "hb-ing-zitrone",
+          "name": "Zitrone",
+          "amount": 1,
+          "unit": "Stück",
+          "category": "gemuese"
+        },
+        {
+          "id": "hb-ing-paprika-edelsuess",
+          "name": "Paprika edelsüß",
+          "amount": 2,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "hb-ing-kreuzkuemmel",
+          "name": "Kreuzkümmel",
+          "amount": 1.5,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "hb-ing-sumach",
+          "name": "Sumach",
+          "amount": 1,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "hb-ing-salz",
+          "name": "Salz",
+          "amount": 1,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "hb-ing-pfeffer",
+          "name": "Pfeffer",
+          "amount": 0.5,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "hb-ing-oel",
+          "name": "Olivenöl",
+          "amount": 2,
+          "unit": "EL",
+          "category": "oele_saucen"
+        },
+        {
+          "id": "hb-ing-wasser-bulgur",
+          "name": "Wasser (für Bulgur)",
+          "amount": 750,
+          "unit": "ml",
+          "category": "sonstiges",
+          "optional": true
+        }
+      ],
       "misEnPlace": [
-        { "id": "hb-mep-1", "text": "Hähnchenbrust in 2cm Würfel schneiden", "category": "schneiden" },
-        { "id": "hb-mep-2", "text": "Gewürze abmessen: Paprika edelsüss, Kreuzkümmel, Sumach", "category": "abmessen" },
-        { "id": "hb-mep-3", "text": "Hähnchen mit Gewürzen und 2 EL Joghurt marinieren, mind. 30 Min", "shortLabel": "Marinade", "category": "marinieren", "timerMinutes": 30 },
-        { "id": "hb-mep-4", "text": "Gurke und Tomaten würfeln", "category": "schneiden" },
-        { "id": "hb-mep-5", "text": "Knoblauch für die Sauce pressen", "category": "schneiden" },
-        { "id": "hb-mep-6", "text": "Bulgur abwiegen (375g für 5 Portionen)", "category": "wiegen" }
+        {
+          "id": "hb-mep-1",
+          "text": "Hähnchenbrust in 2cm Würfel schneiden",
+          "category": "schneiden",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-chicken"
+            }
+          ]
+        },
+        {
+          "id": "hb-mep-2",
+          "text": "Gewürze für die Marinade abmessen",
+          "category": "abmessen",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-paprika-edelsuess"
+            },
+            {
+              "ingredientId": "hb-ing-kreuzkuemmel"
+            },
+            {
+              "ingredientId": "hb-ing-sumach"
+            },
+            {
+              "ingredientId": "hb-ing-salz"
+            },
+            {
+              "ingredientId": "hb-ing-pfeffer"
+            }
+          ]
+        },
+        {
+          "id": "hb-mep-3",
+          "text": "Hähnchen mit Gewürzen und Joghurt marinieren, mind. 30 Min",
+          "shortLabel": "Marinade",
+          "category": "marinieren",
+          "timerMinutes": 30,
+          "uses": [
+            {
+              "ingredientId": "hb-ing-chicken"
+            },
+            {
+              "ingredientId": "hb-ing-joghurt",
+              "amount": 2,
+              "unit": "EL"
+            },
+            {
+              "ingredientId": "hb-ing-paprika-edelsuess"
+            },
+            {
+              "ingredientId": "hb-ing-kreuzkuemmel"
+            },
+            {
+              "ingredientId": "hb-ing-sumach"
+            }
+          ]
+        },
+        {
+          "id": "hb-mep-4",
+          "text": "Gurke und Tomaten würfeln",
+          "category": "schneiden",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-gurke"
+            },
+            {
+              "ingredientId": "hb-ing-tomaten"
+            }
+          ]
+        },
+        {
+          "id": "hb-mep-5",
+          "text": "Knoblauch für die Sauce pressen",
+          "category": "schneiden",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-knoblauch"
+            }
+          ]
+        },
+        {
+          "id": "hb-mep-6",
+          "text": "Bulgur abwiegen (375g für 5 Portionen)",
+          "category": "wiegen",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-bulgur"
+            }
+          ]
+        }
       ],
       "steps": [
-        { "id": "hb-s1", "recipeId": "tuerkische-haehnchen-bowl", "order": 1, "text": "Bulgur mit Wasser aufkochen, dann Deckel drauf und Hitze reduzieren", "shortLabel": "Bulgur köchelt", "timeMinutes": 15, "activeMinutes": 2, "device": "Topf", "tip": "Deckel drauf lassen, sonst verdampft zu viel Wasser." },
-        { "id": "hb-s2", "recipeId": "tuerkische-haehnchen-bowl", "order": 2, "text": "Hähnchenwürfel scharf anbraten", "shortLabel": "Hähnchen braten", "timeMinutes": 8, "device": "Pfanne", "temperatureC": null },
-        { "id": "hb-s3", "recipeId": "tuerkische-haehnchen-bowl", "order": 3, "text": "Hähnchen bei mittlerer Hitze fertig garen", "shortLabel": "Hähnchen garen", "timeMinutes": 6, "device": "Pfanne" },
-        { "id": "hb-s4", "recipeId": "tuerkische-haehnchen-bowl", "order": 4, "text": "Joghurt, Knoblauch und Zitronensaft zur Sauce verrühren", "shortLabel": "Sauce rühren", "timeMinutes": 3, "device": "Arbeitsplatte" },
-        { "id": "hb-s5", "recipeId": "tuerkische-haehnchen-bowl", "order": 5, "text": "Bulgur, Hähnchen und Salat anrichten, Sauce separat einpacken", "shortLabel": "Bowl anrichten", "timeMinutes": 4, "device": "Arbeitsplatte", "tip": "Sauce erst beim Essen dazugeben." }
+        {
+          "id": "hb-s1",
+          "recipeId": "tuerkische-haehnchen-bowl",
+          "order": 1,
+          "text": "Bulgur mit Wasser aufkochen, dann Deckel drauf und Hitze reduzieren",
+          "shortLabel": "Bulgur köchelt",
+          "timeMinutes": 15,
+          "activeMinutes": 2,
+          "device": "Topf",
+          "tip": "Deckel drauf lassen, sonst verdampft zu viel Wasser.",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-bulgur"
+            },
+            {
+              "ingredientId": "hb-ing-wasser-bulgur"
+            },
+            {
+              "ingredientId": "hb-ing-salz",
+              "amount": 0.5,
+              "unit": "TL"
+            }
+          ]
+        },
+        {
+          "id": "hb-s2",
+          "recipeId": "tuerkische-haehnchen-bowl",
+          "order": 2,
+          "text": "Hähnchenwürfel scharf anbraten",
+          "shortLabel": "Hähnchen braten",
+          "timeMinutes": 8,
+          "device": "Pfanne",
+          "temperatureC": null,
+          "uses": [
+            {
+              "ingredientId": "hb-ing-chicken"
+            },
+            {
+              "ingredientId": "hb-ing-oel"
+            }
+          ]
+        },
+        {
+          "id": "hb-s3",
+          "recipeId": "tuerkische-haehnchen-bowl",
+          "order": 3,
+          "text": "Hähnchen bei mittlerer Hitze fertig garen",
+          "shortLabel": "Hähnchen garen",
+          "timeMinutes": 6,
+          "device": "Pfanne",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-chicken"
+            }
+          ]
+        },
+        {
+          "id": "hb-s4",
+          "recipeId": "tuerkische-haehnchen-bowl",
+          "order": 4,
+          "text": "Joghurt, Knoblauch und Zitronensaft zur Sauce verrühren",
+          "shortLabel": "Sauce rühren",
+          "timeMinutes": 3,
+          "device": "Arbeitsplatte",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-joghurt",
+              "amount": 250,
+              "unit": "g"
+            },
+            {
+              "ingredientId": "hb-ing-knoblauch"
+            },
+            {
+              "ingredientId": "hb-ing-zitrone",
+              "note": "Saft frisch"
+            },
+            {
+              "ingredientId": "hb-ing-salz",
+              "amount": 0.5,
+              "unit": "TL"
+            }
+          ]
+        },
+        {
+          "id": "hb-s5",
+          "recipeId": "tuerkische-haehnchen-bowl",
+          "order": 5,
+          "text": "Bulgur, Hähnchen und Salat anrichten, Sauce separat einpacken",
+          "shortLabel": "Bowl anrichten",
+          "timeMinutes": 4,
+          "device": "Arbeitsplatte",
+          "tip": "Sauce erst beim Essen dazugeben.",
+          "uses": [
+            {
+              "ingredientId": "hb-ing-bulgur"
+            },
+            {
+              "ingredientId": "hb-ing-chicken"
+            },
+            {
+              "ingredientId": "hb-ing-gurke"
+            },
+            {
+              "ingredientId": "hb-ing-tomaten"
+            },
+            {
+              "ingredientId": "hb-ing-joghurt",
+              "amount": 250,
+              "unit": "g",
+              "note": "separat einpacken"
+            }
+          ]
+        }
       ]
     },
     {
@@ -50,21 +345,351 @@
         "Limettensaft erst kurz vor dem Essen zugeben, sonst wird der Reis labbrig.",
         "Im Kühlschrank 3 Tage haltbar, danach einfrieren."
       ],
+      "ingredients": [
+        {
+          "id": "tr-ing-reis",
+          "name": "Langkornreis",
+          "amount": 375,
+          "unit": "g",
+          "category": "trockenes"
+        },
+        {
+          "id": "tr-ing-thunfisch",
+          "name": "Thunfisch (Dose)",
+          "amount": 400,
+          "unit": "g",
+          "category": "konserven"
+        },
+        {
+          "id": "tr-ing-mais",
+          "name": "Mais (Dose)",
+          "amount": 280,
+          "unit": "g",
+          "category": "konserven"
+        },
+        {
+          "id": "tr-ing-bohnen",
+          "name": "Schwarze Bohnen (Dose)",
+          "amount": 400,
+          "unit": "g",
+          "category": "konserven"
+        },
+        {
+          "id": "tr-ing-paprika",
+          "name": "Paprika (Gemüse)",
+          "amount": 2,
+          "unit": "Stück",
+          "category": "gemuese"
+        },
+        {
+          "id": "tr-ing-zwiebel",
+          "name": "Zwiebel",
+          "amount": 1,
+          "unit": "Stück",
+          "category": "gemuese"
+        },
+        {
+          "id": "tr-ing-limetten",
+          "name": "Limetten",
+          "amount": 2,
+          "unit": "Stück",
+          "category": "gemuese"
+        },
+        {
+          "id": "tr-ing-koriander",
+          "name": "Koriander (frisch)",
+          "amount": 1,
+          "unit": "Bund",
+          "category": "gemuese"
+        },
+        {
+          "id": "tr-ing-cumin",
+          "name": "Kreuzkümmel",
+          "amount": 1,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "tr-ing-chili",
+          "name": "Chilipulver",
+          "amount": 0.5,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "tr-ing-paprika-pulver",
+          "name": "Paprikapulver",
+          "amount": 1,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "tr-ing-salz",
+          "name": "Salz",
+          "amount": 1,
+          "unit": "TL",
+          "category": "gewuerze"
+        },
+        {
+          "id": "tr-ing-oel",
+          "name": "Öl",
+          "amount": 1,
+          "unit": "EL",
+          "category": "oele_saucen"
+        },
+        {
+          "id": "tr-ing-wasser-reis",
+          "name": "Wasser (für Reis)",
+          "amount": 750,
+          "unit": "ml",
+          "category": "sonstiges",
+          "optional": true
+        }
+      ],
       "misEnPlace": [
-        { "id": "tr-mep-1", "text": "Paprika und Zwiebel würfeln", "category": "schneiden" },
-        { "id": "tr-mep-2", "text": "Mais und schwarze Bohnen abtropfen lassen", "category": "sonstiges" },
-        { "id": "tr-mep-3", "text": "Reis abwiegen (375g für 5 Portionen)", "category": "wiegen" },
-        { "id": "tr-mep-4", "text": "Thunfisch abtropfen lassen und mit Gabel zerpflücken", "category": "sonstiges" },
-        { "id": "tr-mep-5", "text": "Koriander hacken", "category": "schneiden" },
-        { "id": "tr-mep-6", "text": "2 Limetten auspressen", "category": "abmessen" }
+        {
+          "id": "tr-mep-1",
+          "text": "Paprika und Zwiebel würfeln",
+          "category": "schneiden",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-paprika"
+            },
+            {
+              "ingredientId": "tr-ing-zwiebel"
+            }
+          ]
+        },
+        {
+          "id": "tr-mep-2",
+          "text": "Mais und schwarze Bohnen abtropfen lassen",
+          "category": "sonstiges",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-mais"
+            },
+            {
+              "ingredientId": "tr-ing-bohnen"
+            }
+          ]
+        },
+        {
+          "id": "tr-mep-3",
+          "text": "Reis abwiegen (375g für 5 Portionen)",
+          "category": "wiegen",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-reis"
+            }
+          ]
+        },
+        {
+          "id": "tr-mep-4",
+          "text": "Thunfisch abtropfen lassen und mit Gabel zerpflücken",
+          "category": "sonstiges",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-thunfisch"
+            }
+          ]
+        },
+        {
+          "id": "tr-mep-5",
+          "text": "Koriander hacken",
+          "category": "schneiden",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-koriander"
+            }
+          ]
+        },
+        {
+          "id": "tr-mep-6",
+          "text": "2 Limetten auspressen",
+          "category": "abmessen",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-limetten"
+            }
+          ]
+        },
+        {
+          "id": "tr-mep-7",
+          "text": "Gewürze für den Reis abmessen",
+          "category": "abmessen",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-cumin"
+            },
+            {
+              "ingredientId": "tr-ing-chili"
+            },
+            {
+              "ingredientId": "tr-ing-paprika-pulver"
+            },
+            {
+              "ingredientId": "tr-ing-salz"
+            }
+          ]
+        }
       ],
       "steps": [
-        { "id": "tr-s1", "recipeId": "mexikanischer-thunfisch-reis", "order": 1, "text": "Reis abspülen und mit Wasser aufkochen", "shortLabel": "Reis köchelt", "timeMinutes": 15, "activeMinutes": 2, "device": "Topf", "tip": "Kurz abspülen, sonst klebt der Reis später." },
-        { "id": "tr-s2", "recipeId": "mexikanischer-thunfisch-reis", "order": 2, "text": "Paprika und Zwiebel andünsten", "shortLabel": "Gemüse dünsten", "timeMinutes": 6, "device": "Pfanne" },
-        { "id": "tr-s3", "recipeId": "mexikanischer-thunfisch-reis", "order": 3, "text": "Mais, Bohnen und Gewürze dazugeben", "shortLabel": "Bohnen & Gewürze", "timeMinutes": 5, "device": "Pfanne" },
-        { "id": "tr-s4", "recipeId": "mexikanischer-thunfisch-reis", "order": 4, "text": "Thunfisch unterheben und kurz erwärmen", "shortLabel": "Thunfisch erwärmen", "timeMinutes": 3, "device": "Pfanne" },
-        { "id": "tr-s5", "recipeId": "mexikanischer-thunfisch-reis", "order": 5, "text": "Anrichten mit Limette und Koriander", "shortLabel": "Reis anrichten", "timeMinutes": 4, "device": "Arbeitsplatte" }
+        {
+          "id": "tr-s1",
+          "recipeId": "mexikanischer-thunfisch-reis",
+          "order": 1,
+          "text": "Reis abspülen und mit Wasser aufkochen",
+          "shortLabel": "Reis köchelt",
+          "timeMinutes": 15,
+          "activeMinutes": 2,
+          "device": "Topf",
+          "tip": "Kurz abspülen, sonst klebt der Reis später.",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-reis"
+            },
+            {
+              "ingredientId": "tr-ing-wasser-reis"
+            },
+            {
+              "ingredientId": "tr-ing-salz",
+              "amount": 0.5,
+              "unit": "TL"
+            }
+          ]
+        },
+        {
+          "id": "tr-s2",
+          "recipeId": "mexikanischer-thunfisch-reis",
+          "order": 2,
+          "text": "Paprika und Zwiebel andünsten",
+          "shortLabel": "Gemüse dünsten",
+          "timeMinutes": 6,
+          "device": "Pfanne",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-paprika"
+            },
+            {
+              "ingredientId": "tr-ing-zwiebel"
+            },
+            {
+              "ingredientId": "tr-ing-oel"
+            }
+          ]
+        },
+        {
+          "id": "tr-s3",
+          "recipeId": "mexikanischer-thunfisch-reis",
+          "order": 3,
+          "text": "Mais, Bohnen und Gewürze dazugeben",
+          "shortLabel": "Bohnen & Gewürze",
+          "timeMinutes": 5,
+          "device": "Pfanne",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-mais"
+            },
+            {
+              "ingredientId": "tr-ing-bohnen"
+            },
+            {
+              "ingredientId": "tr-ing-cumin"
+            },
+            {
+              "ingredientId": "tr-ing-chili"
+            },
+            {
+              "ingredientId": "tr-ing-paprika-pulver"
+            },
+            {
+              "ingredientId": "tr-ing-salz",
+              "amount": 0.5,
+              "unit": "TL"
+            }
+          ]
+        },
+        {
+          "id": "tr-s4",
+          "recipeId": "mexikanischer-thunfisch-reis",
+          "order": 4,
+          "text": "Thunfisch unterheben und kurz erwärmen",
+          "shortLabel": "Thunfisch erwärmen",
+          "timeMinutes": 3,
+          "device": "Pfanne",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-thunfisch"
+            }
+          ]
+        },
+        {
+          "id": "tr-s5",
+          "recipeId": "mexikanischer-thunfisch-reis",
+          "order": 5,
+          "text": "Anrichten mit Limette und Koriander",
+          "shortLabel": "Reis anrichten",
+          "timeMinutes": 4,
+          "device": "Arbeitsplatte",
+          "uses": [
+            {
+              "ingredientId": "tr-ing-limetten",
+              "note": "erst am Ende"
+            },
+            {
+              "ingredientId": "tr-ing-koriander"
+            }
+          ]
+        }
       ]
+    }
+  ],
+  "weekNote": "Zwei Töpfe bereitstellen. Joghurt für Marinade und Sauce aufteilen. Limette erst beim Anrichten.",
+  "equipment": [
+    {
+      "id": "eq-topf",
+      "name": "Topf",
+      "qty": 2,
+      "note": "Bulgur + Reis parallel"
+    },
+    {
+      "id": "eq-pfanne",
+      "name": "Pfanne",
+      "qty": 2,
+      "note": "eins pro Rezept oder nacheinander"
+    },
+    {
+      "id": "eq-brett",
+      "name": "Schneidebrett",
+      "qty": 1
+    },
+    {
+      "id": "eq-messer",
+      "name": "scharfes Messer",
+      "qty": 1
+    },
+    {
+      "id": "eq-waage",
+      "name": "Küchenwaage",
+      "qty": 1
+    },
+    {
+      "id": "eq-siebe",
+      "name": "Sieb",
+      "qty": 1,
+      "note": "Dosen abtropfen"
+    },
+    {
+      "id": "eq-schuesseln",
+      "name": "Schüsseln",
+      "qty": 3,
+      "note": "Marinade, Sauce, Salat"
+    },
+    {
+      "id": "eq-boxen",
+      "name": "Meal-Prep-Boxen",
+      "qty": 10,
+      "note": "5 Portionen × 2 Rezepte"
     }
   ]
 }

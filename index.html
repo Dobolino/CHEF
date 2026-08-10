@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Batch Cooking · Übersicht</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BatchCook">
+<meta name="theme-color" content="#14171c">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<title>Batch Cooking</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -19,6 +26,10 @@
     --accent-b: #ff5c5c;
     --accent-b-dim: #ff5c5c33;
     --freeze: #35d0ba;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -28,8 +39,13 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', sans-serif;
-    min-height: 100vh;
-    padding: clamp(20px, 4vw, 48px);
+    min-height: 100%;
+    min-height: 100dvh;
+    padding: calc(var(--safe-t) + clamp(16px, 4vw, 40px))
+             max(clamp(16px, 4vw, 40px), var(--safe-r))
+             calc(var(--safe-b) + clamp(16px, 4vw, 40px))
+             max(clamp(16px, 4vw, 40px), var(--safe-l));
+    touch-action: manipulation;
   }
 
   header {
@@ -38,7 +54,7 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
-    margin-bottom: 32px;
+    margin-bottom: 20px;
   }
 
   header h1 {
@@ -55,35 +71,115 @@
     color: var(--text-muted);
   }
 
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .tabs a {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(15px, 3.6vw, 18px);
+    padding: 16px 12px; min-height: 56px; border-radius: 14px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text-muted);
+    text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .tabs a.active {
+    color: #052b26; background: var(--freeze); border-color: var(--freeze);
+  }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
   .toolbar {
     display: flex;
     gap: 12px;
-    margin-bottom: 28px;
+    margin-bottom: 22px;
     flex-wrap: wrap;
   }
 
   .toolbar button, .toolbar label, .toolbar a {
-    font-family: 'Inter', sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    padding: 12px 18px;
-    min-height: 44px;
-    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: clamp(16px, 3.5vw, 18px);
+    padding: 18px 22px;
+    min-height: 60px;
+    border-radius: 14px;
     border: 1px solid var(--line);
     background: var(--surface);
     color: var(--text);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     text-decoration: none;
+    flex: 1 1 160px;
   }
 
   .toolbar button:active, .toolbar label:active, .toolbar a:active { background: var(--surface-raised); }
+  .toolbar a.primary { background: var(--accent-a); color: #04132e; border-color: transparent; flex: 2 1 220px; }
+
+  .servings-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 20px; max-width: 520px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .servings-bar span.label { font-weight: 600; font-size: 16px; }
+  .servings-bar .ctrl { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .servings-bar button {
+    width: 56px; height: 56px; border-radius: 14px; border: 1px solid var(--line);
+    background: var(--surface-raised); color: var(--text); font-size: 26px; font-weight: 700; cursor: pointer;
+  }
+  .servings-bar .val {
+    font-family: 'IBM Plex Mono', monospace; font-size: 24px; font-weight: 600; min-width: 2ch; text-align: center;
+  }
+
+  .week-note {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 24px; max-width: 720px;
+    color: var(--text-muted); font-size: 15px; line-height: 1.45;
+  }
+  .week-note strong { color: var(--freeze); font-weight: 600; display: block; margin-bottom: 6px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-family: 'IBM Plex Mono', monospace; }
+
+  .prompt-card {
+    background: rgba(53,208,186,0.1);
+    border: 1px solid rgba(53,208,186,0.35);
+    border-radius: 16px;
+    padding: 18px 18px 16px;
+    margin-bottom: 24px;
+    max-width: 820px;
+  }
+  .prompt-card .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--freeze); margin-bottom: 8px; font-weight: 600;
+  }
+  .prompt-card p {
+    margin: 0 0 14px; color: var(--text); font-size: 15px; line-height: 1.45;
+  }
+  .prompt-card .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .prompt-card button {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px;
+    min-height: 52px; padding: 14px 18px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  }
+  .prompt-card button.primary {
+    background: var(--freeze); color: #052b26; border-color: transparent;
+  }
+  .prompt-card pre {
+    display: none; margin: 14px 0 0; max-height: 220px; overflow: auto;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px; font-size: 12px; line-height: 1.4; white-space: pre-wrap;
+    color: var(--text-muted); font-family: 'IBM Plex Mono', monospace;
+  }
+  .prompt-card.expanded pre { display: block; }
+  .prompt-card .status { font-size: 13px; color: var(--freeze); margin-top: 10px; min-height: 1.2em; }
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
     gap: 24px;
   }
 
@@ -95,11 +191,7 @@
     position: relative;
   }
 
-  .ticket .stripe {
-    height: 6px;
-    width: 100%;
-  }
-
+  .ticket .stripe { height: 6px; width: 100%; }
   .ticket.recipe-a .stripe { background: var(--accent-a); }
   .ticket.recipe-b .stripe { background: var(--accent-b); }
 
@@ -179,9 +271,14 @@
     font-family: 'IBM Plex Mono', monospace;
   }
 
+  @media (max-width: 400px) {
+    .macros { grid-template-columns: repeat(3, 1fr); row-gap: 10px; }
+  }
+
   .macros .cell { text-align: center; }
   .macros .val { font-size: 17px; font-weight: 600; display: block; }
   .macros .lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .macros-hint { padding: 0 20px 8px; font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
 
   .notes {
     padding: 16px 20px 20px;
@@ -223,6 +320,53 @@
   }
 
   input[type="file"] { display: none; }
+
+  .mise-intro {
+    background: rgba(53,208,186,0.12); border: 1px solid rgba(53,208,186,0.35);
+    color: var(--text); border-radius: 14px; padding: 16px 18px; margin-bottom: 20px;
+    font-size: 16px; line-height: 1.45; max-width: 720px;
+  }
+  .mise-intro strong { color: var(--freeze); }
+  .mise-block { margin-bottom: 28px; max-width: 720px; }
+  .mise-block h2 {
+    font-family: 'Space Grotesk', sans-serif; font-size: clamp(22px, 5vw, 26px); margin: 0 0 14px;
+  }
+  .mise-row {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px 16px; margin-bottom: 10px; cursor: pointer;
+    min-height: 72px;
+  }
+  .mise-row.checked { opacity: 0.55; }
+  .mise-row.checked .mise-text { text-decoration: line-through; }
+  .mise-box {
+    width: 44px; height: 44px; border-radius: 12px; border: 2px solid var(--line);
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    color: transparent; background: var(--surface-raised);
+  }
+  .mise-row.checked .mise-box { background: var(--freeze); border-color: var(--freeze); color: #052b26; }
+  .mise-box svg { width: 26px; height: 26px; }
+  .mise-text {
+    flex: 1; font-size: clamp(17px, 4.2vw, 20px); line-height: 1.35; font-weight: 500;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  }
+  .mise-tags { display: inline-flex; gap: 6px; }
+  .mise-tags span {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;
+    padding: 4px 8px; border-radius: 6px; min-width: 28px; text-align: center;
+  }
+  .mise-tags .a { color: var(--accent-a); background: var(--accent-a-dim); }
+  .mise-tags .b { color: var(--accent-b); background: var(--accent-b-dim); }
+  .cat-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--freeze);
+    text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 10px; font-weight: 600;
+  }
+  .empty-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .empty-actions button {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px;
+    padding: 18px 24px; min-height: 60px; border-radius: 14px; border: none;
+    background: var(--accent-a); color: #04132e; cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -234,26 +378,113 @@
   </div>
 </header>
 
-<div class="toolbar">
-  <label for="fileInput">
-    JSON importieren
-  </label>
-  <input type="file" id="fileInput" accept="application/json">
-  <button id="loadDemoBtn">Beispielrezepte laden</button>
-  <a href="kochmodus.html" id="cookLink">Kochmodus starten →</a>
-</div>
+<nav class="tabs" aria-label="Bereiche">
+  <a href="#overview" id="tabOverview">Übersicht</a>
+  <a href="#mise" id="tabMise">Mis en Place</a>
+  <a href="#cook" id="tabCook">Kochmodus</a>
+</nav>
 
-<div class="grid" id="grid"></div>
+<section id="viewOverview" class="view active">
+  <div class="toolbar">
+    <label for="fileInput">JSON importieren</label>
+    <input type="file" id="fileInput" accept="application/json">
+    <button type="button" id="loadDemoBtn">Beispielrezepte laden</button>
+    <button type="button" id="exportBtn">JSON exportieren</button>
+    <a class="primary" href="kochmodus.html">Kochmodus starten →</a>
+  </div>
+
+  <div class="servings-bar" id="servingsBar">
+    <span class="label">Portionen (Makros skalieren)</span>
+    <div class="ctrl">
+      <button type="button" id="servingsMinus" aria-label="Weniger">−</button>
+      <span class="val" id="servingsVal">5</span>
+      <button type="button" id="servingsPlus" aria-label="Mehr">+</button>
+    </div>
+  </div>
+
+  <div class="prompt-card" id="promptCard">
+    <div class="eyebrow">Prompt für Claude</div>
+    <p>Kopiere den Schema-Prompt, um neue Wochenrezepte im richtigen JSON-Format erzeugen zu lassen.</p>
+    <div class="actions">
+      <button type="button" class="primary" id="copyPromptBtn">Prompt kopieren</button>
+      <button type="button" id="togglePromptBtn">Anzeigen</button>
+    </div>
+    <pre id="promptPreview">Lade …</pre>
+    <div class="status" id="promptStatus" aria-live="polite"></div>
+  </div>
+
+  <div class="week-note" id="weekNoteBox" hidden>
+    <strong>Wochennotiz</strong>
+    <div id="weekNoteText"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</section>
+
+<section id="viewMise" class="view">
+  <div class="toolbar">
+    <a class="primary" href="kochmodus.html#mise">Im Kochmodus abhaken →</a>
+    <button type="button" id="miseClearBtn">Häkchen zurücksetzen</button>
+  </div>
+  <div id="miseRoot"></div>
+</section>
 
 <script>
-  // Colors are assigned by recipe position, not stored in the JSON.
-  // This keeps the schema extendable beyond exactly two recipes.
+  const STORAGE_RECIPES = "batchcooking_recipes";
+  const STORAGE_SERVINGS = "batchcooking_servings";
+  const STORAGE_MISE = "batchcooking_mise_checks";
   const ACCENT_CLASSES = ["recipe-a", "recipe-b"];
+  const ING_CATS = {
+    gemuese: "Gemüse & Obst",
+    fleisch_fisch: "Fleisch & Fisch",
+    milch_ei: "Milch & Ei",
+    trockenes: "Getreide & Trocken",
+    konserven: "Konserven",
+    gewuerze: "Gewürze",
+    oele_saucen: "Öle & Saucen",
+    sonstiges: "Sonstiges"
+  };
 
   const grid = document.getElementById("grid");
   const weekLabel = document.getElementById("weekLabel");
   const fileInput = document.getElementById("fileInput");
   const loadDemoBtn = document.getElementById("loadDemoBtn");
+  const exportBtn = document.getElementById("exportBtn");
+  const copyPromptBtn = document.getElementById("copyPromptBtn");
+  const togglePromptBtn = document.getElementById("togglePromptBtn");
+  const promptCard = document.getElementById("promptCard");
+  const promptPreview = document.getElementById("promptPreview");
+  const promptStatus = document.getElementById("promptStatus");
+  let menuData = { recipes: [] };
+  let targetServings = 5;
+  let promptText = "";
+
+  async function ensurePromptLoaded() {
+    if (promptText) return promptText;
+    try {
+      const res = await fetch("PROMPT_RECIPES.md", { cache: "no-store" });
+      if (!res.ok) throw new Error("not found");
+      promptText = await res.text();
+    } catch (e) {
+      promptText = "Prompt-Datei PROMPT_RECIPES.md nicht gefunden. Bitte im Repo öffnen.";
+    }
+    promptPreview.textContent = promptText;
+    return promptText;
+  }
+
+  async function copyText(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      promptStatus.textContent = okMsg;
+    } catch (e) {
+      // Fallback for older Safari
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); promptStatus.textContent = okMsg; }
+      catch (err) { promptStatus.textContent = "Kopieren fehlgeschlagen"; }
+      ta.remove();
+    }
+  }
 
   function freezeIcon() {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -261,18 +492,103 @@
     </svg>`;
   }
 
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : str;
+    return div.innerHTML;
+  }
+
+  function scaleNumber(n, from, to) {
+    const v = n * (to / from);
+    if (Math.abs(v - Math.round(v)) < 1e-6) return Math.round(v);
+    return Math.round(v * 10) / 10;
+  }
+
+  function fmtNum(n) {
+    if (n == null || Number.isNaN(n)) return "–";
+    return String(n).replace(".", ",");
+  }
+
+  function readServings(fallback) {
+    try {
+      const n = Number(localStorage.getItem(STORAGE_SERVINGS));
+      if (Number.isFinite(n) && n >= 1 && n <= 24) return Math.round(n);
+    } catch (e) { /* ignore */ }
+    return fallback;
+  }
+
+  function saveServings() {
+    try { localStorage.setItem(STORAGE_SERVINGS, String(targetServings)); } catch (e) { /* ignore */ }
+  }
+
+  function normalizeIngKey(ing) {
+    const name = String(ing.name || "").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
+    const unit = String(ing.unit || "").toLowerCase().trim();
+    return name + "|" + unit;
+  }
+
+  function mergedIngredients(recipes) {
+    const buckets = Object.create(null);
+    recipes.forEach((r, ri) => (r.ingredients || []).forEach(ing => {
+      if (!ing || !ing.id) return;
+      const key = normalizeIngKey(ing);
+      if (!buckets[key]) {
+        buckets[key] = {
+          category: ing.category || "sonstiges",
+          name: ing.name,
+          unit: ing.unit || "",
+          amount: 0,
+          optional: true,
+          recipes: []
+        };
+      }
+      const b = buckets[key];
+      const n = Number(ing.amount);
+      if (Number.isFinite(n)) b.amount += n;
+      b.optional = b.optional && !!ing.optional;
+      if (!b.recipes.includes(ri)) b.recipes.push(ri);
+      if (b.category === "sonstiges" && ing.category) b.category = ing.category;
+    }));
+    return Object.keys(buckets).map(k => ({ id: "ing:" + k, ...buckets[k] }));
+  }
+
   function renderRecipes(data) {
+    menuData = data || { recipes: [] };
     grid.innerHTML = "";
     weekLabel.textContent = data.week ? `Woche ${data.week}` : "";
 
+    const base = (data.recipes && data.recipes[0] && data.recipes[0].servings) || 5;
+    targetServings = readServings(base);
+    document.getElementById("servingsVal").textContent = String(targetServings);
+
+    const noteBox = document.getElementById("weekNoteBox");
+    if (data.weekNote) {
+      noteBox.hidden = false;
+      document.getElementById("weekNoteText").textContent = data.weekNote;
+    } else {
+      noteBox.hidden = true;
+    }
+
     if (!data.recipes || data.recipes.length === 0) {
       grid.innerHTML = `<div class="empty">Keine Rezepte geladen. Importiere eine JSON-Datei oder lade die Beispielrezepte.</div>`;
+      renderMise();
       return;
     }
 
     data.recipes.forEach((recipe, index) => {
       const accentClass = ACCENT_CLASSES[index % ACCENT_CLASSES.length];
       const macros = recipe.macrosPerServing || {};
+      const from = Number(recipe.servings) || base;
+      const factor = targetServings / from;
+      // Per-serving macros stay the same; show batch totals for the scaled week.
+      const batch = {
+        kcal: macros.kcal != null ? Math.round(macros.kcal * targetServings) : null,
+        protein_g: macros.protein_g != null ? Math.round(macros.protein_g * targetServings) : null,
+        carbs_g: macros.carbs_g != null ? Math.round(macros.carbs_g * targetServings) : null,
+        fat_g: macros.fat_g != null ? Math.round(macros.fat_g * targetServings) : null,
+        fiber_g: macros.fiber_g != null ? Math.round(macros.fiber_g * targetServings) : null
+      };
 
       const notesHtml = (recipe.notes || [])
         .map(note => `<div class="note">${escapeHtml(note)}</div>`)
@@ -288,9 +604,10 @@
             <span class="label-tag">Rezept ${String.fromCharCode(65 + index)}</span>
             ${recipe.freezable ? `<div class="freeze-badge">${freezeIcon()} Einfrierbar</div>` : ""}
           </div>
-          <div class="servings">${recipe.servings} Portionen</div>
+          <div class="servings">${targetServings} Portionen</div>
         </div>
         <div class="perforation"></div>
+        <div class="macros-hint">pro Portion · Summe ${targetServings}× darunter</div>
         <div class="macros">
           <div class="cell"><span class="val">${macros.kcal ?? "–"}</span><span class="lbl">kcal</span></div>
           <div class="cell"><span class="val">${macros.protein_g ?? "–"}</span><span class="lbl">Prot.</span></div>
@@ -298,17 +615,138 @@
           <div class="cell"><span class="val">${macros.fat_g ?? "–"}</span><span class="lbl">Fett</span></div>
           <div class="cell"><span class="val">${macros.fiber_g ?? "–"}</span><span class="lbl">Ball.</span></div>
         </div>
+        <div class="macros">
+          <div class="cell"><span class="val">${fmtNum(batch.kcal)}</span><span class="lbl">Σ kcal</span></div>
+          <div class="cell"><span class="val">${fmtNum(batch.protein_g)}</span><span class="lbl">Σ Prot.</span></div>
+          <div class="cell"><span class="val">${fmtNum(batch.carbs_g)}</span><span class="lbl">Σ KH</span></div>
+          <div class="cell"><span class="val">${fmtNum(batch.fat_g)}</span><span class="lbl">Σ Fett</span></div>
+          <div class="cell"><span class="val">${fmtNum(batch.fiber_g)}</span><span class="lbl">Σ Ball.</span></div>
+        </div>
         ${notesHtml ? `<div class="notes">${notesHtml}</div>` : ""}
-        <div class="mep-count">${(recipe.misEnPlace || []).length} Mis-en-Place-Schritte · ${(recipe.steps || []).length} Kochschritte</div>
+        <div class="mep-count">${(recipe.ingredients || []).length ? (recipe.ingredients.length) + " Zutaten · " : ""}${(recipe.misEnPlace || []).length} Mis-en-Place · ${(recipe.steps || []).length} Kochschritte</div>
       `;
       grid.appendChild(ticket);
     });
+
+    renderMise();
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
+  function loadMiseChecks() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_MISE) || "{}"); }
+    catch (e) { return {}; }
+  }
+  function saveMiseChecks(obj) {
+    try { localStorage.setItem(STORAGE_MISE, JSON.stringify(obj)); } catch (e) { /* ignore */ }
+  }
+
+  function renderMise() {
+    const root = document.getElementById("miseRoot");
+    const recipes = menuData.recipes || [];
+    if (!recipes.length) {
+      root.innerHTML = `<div class="empty">
+        Noch keine Rezepte geladen.<div class="empty-actions">
+          <button type="button" id="miseLoadDemo">Beispielrezepte laden</button>
+        </div>
+      </div>`;
+      const btn = document.getElementById("miseLoadDemo");
+      if (btn) btn.addEventListener("click", () => loadDemoBtn.click());
+      return;
+    }
+
+    const base = Number(recipes[0].servings) || 5;
+    const checks = loadMiseChecks();
+    const equipment = menuData.equipment || [];
+    const merged = mergedIngredients(recipes);
+
+    if (!equipment.length && !merged.length) {
+      root.innerHTML = `<div class="empty">
+        Diese gespeicherten Rezepte haben noch keine Zutatenliste (altes Format).
+        <div class="empty-actions">
+          <button type="button" id="miseReloadFresh">Aktuelle Beispielrezepte laden</button>
+        </div>
+      </div>`;
+      const btn = document.getElementById("miseReloadFresh");
+      if (btn) btn.addEventListener("click", () => loadDemoBtn.click());
+      return;
+    }
+
+    let html = `<div class="mise-intro"><strong>${merged.length} Zutaten</strong> · ${equipment.length} Geräte — abhaken, was schon bereitsteht. Mengen gelten für <strong>${targetServings} Portionen</strong>.</div>`;
+
+    if (equipment.length) {
+      html += `<div class="mise-block"><h2>Geräte & Werkzeug</h2>`;
+      equipment.forEach(eq => {
+        const id = eq.id;
+        const checked = !!checks[id];
+        const line = `${eq.qty != null ? eq.qty + "× " : ""}${eq.name}${eq.note ? " — " + eq.note : ""}`;
+        html += miseRow(id, line, checked, []);
+      });
+      html += `</div>`;
+    }
+
+    const byCat = {};
+    merged.forEach(m => {
+      (byCat[m.category] = byCat[m.category] || []).push(m);
+    });
+    if (merged.length) {
+      html += `<div class="mise-block"><h2>Zutaten (zusammengefasst)</h2>`;
+      Object.keys(ING_CATS).forEach(cat => {
+        if (!byCat[cat]) return;
+        html += `<div class="cat-label">${ING_CATS[cat]}</div>`;
+        byCat[cat].forEach(m => {
+          const amount = scaleNumber(m.amount, base, targetServings);
+          const line = `${fmtNum(amount)} ${m.unit} ${m.name}${m.optional ? " (meist da)" : ""}`;
+          html += miseRow(m.id, line, !!checks[m.id], m.recipes);
+        });
+      });
+      Object.keys(byCat).forEach(cat => {
+        if (ING_CATS[cat]) return;
+        html += `<div class="cat-label">${cat}</div>`;
+        byCat[cat].forEach(m => {
+          const amount = scaleNumber(m.amount, base, targetServings);
+          const line = `${fmtNum(amount)} ${m.unit} ${m.name}`;
+          html += miseRow(m.id, line, !!checks[m.id], m.recipes);
+        });
+      });
+      html += `</div>`;
+    }
+    root.innerHTML = html;
+
+    root.querySelectorAll("[data-mise]").forEach(el => {
+      el.addEventListener("click", () => {
+        const id = el.dataset.mise;
+        const c = loadMiseChecks();
+        if (c[id]) delete c[id]; else c[id] = true;
+        saveMiseChecks(c);
+        renderMise();
+      });
+    });
+  }
+
+  function miseRow(id, text, checked, recipeIndexes) {
+    const tags = (recipeIndexes || []).length
+      ? `<span class="mise-tags">${recipeIndexes.map(i =>
+          `<span class="${i % 2 ? "b" : "a"}">${String.fromCharCode(65 + i)}</span>`).join("")}</span>`
+      : "";
+    return `<div class="mise-row ${checked ? "checked" : ""}" data-mise="${escapeHtml(id)}" role="checkbox" aria-checked="${checked}">
+      <span class="mise-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="mise-text"><span>${escapeHtml(text)}</span>${tags}</span>
+    </div>`;
+  }
+
+  function route() {
+    let hash = (location.hash || "#overview").replace(/^#/, "") || "overview";
+    if (hash === "cook") {
+      window.location.href = "kochmodus.html#cook";
+      return;
+    }
+    const isMise = hash === "mise";
+    document.getElementById("viewOverview").classList.toggle("active", !isMise);
+    document.getElementById("viewMise").classList.toggle("active", isMise);
+    document.getElementById("tabOverview").classList.toggle("active", !isMise);
+    document.getElementById("tabMise").classList.toggle("active", isMise);
+    document.getElementById("tabCook").classList.remove("active");
+    document.title = isMise ? "Batch Cooking · Mis en Place" : "Batch Cooking · Übersicht";
+    if (isMise) renderMise();
   }
 
   fileInput.addEventListener("change", async (e) => {
@@ -317,7 +755,7 @@
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      localStorage.setItem("batchcooking_recipes", JSON.stringify(data));
+      localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
       renderRecipes(data);
     } catch (err) {
       alert("Die Datei ist kein gültiges JSON. Fehler: " + err.message);
@@ -327,16 +765,93 @@
   loadDemoBtn.addEventListener("click", async () => {
     const res = await fetch("recipes.json");
     const data = await res.json();
-    localStorage.setItem("batchcooking_recipes", JSON.stringify(data));
+    localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
     renderRecipes(data);
   });
 
-  // On load: use whatever was last saved in localStorage, otherwise show the empty state.
-  const saved = localStorage.getItem("batchcooking_recipes");
-  if (saved) {
-    renderRecipes(JSON.parse(saved));
-  } else {
-    renderRecipes({ recipes: [] });
+  exportBtn.addEventListener("click", async () => {
+    const blob = new Blob([JSON.stringify(menuData, null, 2)], { type: "application/json" });
+    const name = `batchcooking-${menuData.week || "woche"}.json`;
+    if (navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], name, { type: "application/json" });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "Batch Cooking Menü" });
+          return;
+        }
+      } catch (e) { /* fall through to download */ }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  copyPromptBtn.addEventListener("click", async () => {
+    const text = await ensurePromptLoaded();
+    copyText(text, "Prompt kopiert — in Claude einfügen.");
+  });
+  togglePromptBtn.addEventListener("click", async () => {
+    await ensurePromptLoaded();
+    promptCard.classList.toggle("expanded");
+    togglePromptBtn.textContent = promptCard.classList.contains("expanded") ? "Verbergen" : "Anzeigen";
+  });
+  ensurePromptLoaded();
+
+  document.getElementById("servingsMinus").addEventListener("click", () => {
+    targetServings = Math.max(1, targetServings - 1);
+    saveServings();
+    renderRecipes(menuData);
+  });
+  document.getElementById("servingsPlus").addEventListener("click", () => {
+    targetServings = Math.min(24, targetServings + 1);
+    saveServings();
+    renderRecipes(menuData);
+  });
+  document.getElementById("miseClearBtn").addEventListener("click", () => {
+    saveMiseChecks({});
+    renderMise();
+  });
+
+  window.addEventListener("hashchange", route);
+
+  async function boot() {
+    async function fetchDemo() {
+      const res = await fetch("recipes.json", { cache: "no-store" });
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+      localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
+      return data;
+    }
+    function isStale(data) {
+      const recipes = (data && data.recipes) || [];
+      if (!recipes.length) return true;
+      const hasIng = recipes.some(r => (r.ingredients || []).length > 0);
+      const hasEq = ((data && data.equipment) || []).length > 0;
+      return !hasIng && !hasEq;
+    }
+    try {
+      let data = null;
+      const saved = localStorage.getItem(STORAGE_RECIPES);
+      if (saved) {
+        try { data = JSON.parse(saved); } catch (e) { data = null; }
+      }
+      if (!data || isStale(data)) {
+        try { data = await fetchDemo(); }
+        catch (e) { data = data || { recipes: [] }; }
+      }
+      renderRecipes(data);
+    } catch (err) {
+      try { localStorage.removeItem(STORAGE_RECIPES); } catch (e) { /* ignore */ }
+      renderRecipes({ recipes: [] });
+    }
+    route();
+  }
+
+  boot();
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* offline later */ });
   }
 </script>
 
