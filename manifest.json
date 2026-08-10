@@ -2,7 +2,7 @@
   "name": "Batch Cooking",
   "short_name": "BatchCook",
   "description": "Wöchentliches Batch Cooking — Übersicht, Mis en Place und Kochmodus.",
-  "start_url": "./index.html",
+  "start_url": "./index.html#overview",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

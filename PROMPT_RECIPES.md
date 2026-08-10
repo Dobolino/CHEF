@@ -13,23 +13,35 @@ keine Erklärung ausserhalb des JSON.
 
 Ziel: Am iPad/iPhone kochen mit nassen Fingern. Deshalb:
 
-1. **Vollständige Zutatenliste** mit Mengen (`ingredients[]`) — wird als abhakbare
-   „Zutaten checken“-Phase **vor** dem Mis en Place gezeigt.
-2. **Mis en Place** gebatcht nach Kategorie (schneiden, abmessen, …).
-3. **Kochschritte** mit `activeMinutes` wo Wartezeiten entstehen (Getreide köchelt),
+1. **Geräte-Checkliste** (`equipment[]` auf Menü-Ebene) — Töpfe, Pfannen, Waage.
+2. **Vollständige Zutatenliste** mit Mengen (`ingredients[]`) — abhakbar **vor** Mis en Place;
+   gleiche Produkte (Name+Einheit) werden app-seitig über beide Rezepte **addiert**.
+3. **Mis en Place** gebatcht nach Kategorie (schneiden, abmessen, …).
+4. **Kochschritte** mit `activeMinutes` wo Wartezeiten entstehen (Getreide köchelt),
    damit der Scheduler zwei Rezepte verzahnen kann.
-4. Jeder Prep- und Kochschritt, der Mengen braucht, verweist über `uses[]` auf
-   Ingredient-IDs (Gewürze inkl. TL/EL!).
+5. Jeder Prep-/Kochschritt mit Mengen verweist über `uses[]` auf Ingredient-IDs;
+   optional `note` (z. B. `"erst am Ende"`).
 
-## Schema (Version 1.2)
+## Schema (Version 1.3)
 
 ```json
 {
-  "schemaVersion": "1.2",
+  "schemaVersion": "1.3",
   "week": "YYYY-Www",
+  "weekNote": "Zwei Töpfe bereitstellen. Joghurt aufteilen.",
+  "equipment": [
+    { "id": "eq-topf", "name": "Topf", "qty": 2, "note": "parallel Getreide" }
+  ],
   "recipes": [ /* genau 1 oder 2 Rezepte */ ]
 }
 ```
+
+### Menü-Ebene (optional, empfohlen)
+
+| Feld | Typ | Hinweis |
+|------|-----|---------|
+| `weekNote` | string | Kurznotiz für die Woche (Startscreen / Übersicht) |
+| `equipment` | object[] | Geräte vor dem Kochen abhaken; `id`, `name`, `qty?`, `note?`, `optional?` |
 
 ### Pro Rezept (Pflicht)
 
@@ -85,11 +97,12 @@ IDs müssen **über beide Rezepte eindeutig** sein (Präfix pro Rezept, z. B. 
   "timerMinutes": null,
   "uses": [
     { "ingredientId": "hb-ing-paprika-edelsuess" },
-    { "ingredientId": "hb-ing-kreuzkuemmel" }
+    { "ingredientId": "hb-ing-kreuzkuemmel", "note": "frisch mahlen" }
   ]
 }
 ```
 
+In `uses` darf `amount`/`unit` die Listenmenge **überschreiben**; `note` erscheint als Hinweis unter dem Mengen-Chip.
 **`category`:** `schneiden` | `abmessen` | `marinieren` | `wiegen` | `sonstiges`  
 App-Reihenfolge: schneiden → abmessen → marinieren → wiegen → sonstiges  
 (Marinade früh starten lassen: schneiden/abmessen **vor** marinieren.)
@@ -128,8 +141,8 @@ App-Reihenfolge: schneiden → abmessen → marinieren → wiegen → sonstiges
 
 ### Rückwärtskompatibilität
 
-`ingredients` und `uses` sind **optional**. Alte JSONs ohne sie funktionieren weiter
-(ohne Zutaten-Seiten / ohne Mengen-Chips). Neue Menüs sollen beides immer liefern.
+`ingredients`, `uses`, `equipment`, `weekNote` und `uses[].note` sind **optional**.
+Alte JSONs ohne sie funktionieren weiter.
 
 ## Qualitätsregeln
 

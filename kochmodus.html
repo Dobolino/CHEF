@@ -257,6 +257,39 @@
     background: rgba(53, 208, 186, 0.1);
     border-color: rgba(53, 208, 186, 0.35);
     color: var(--text);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .chip.use small {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--freeze);
+    opacity: 0.95;
+  }
+  .merge-tags {
+    display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle;
+  }
+  .merge-tags span {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .merge-tags .a { color: var(--accent-a); background: var(--accent-a-dim); }
+  .merge-tags .b { color: var(--accent-b); background: var(--accent-b-dim); }
+  .chip.device-hint { color: var(--freeze); border-color: rgba(53,208,186,0.35); }
+  .week-note-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; margin-bottom: 20px; max-width: 720px;
+  }
+  .week-note-card label {
+    display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; color: var(--text-muted);
+  }
+  .week-note-card textarea {
+    width: 100%; min-height: 72px; resize: vertical;
+    background: var(--surface-raised); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.45;
   }
   .uses-block {
     display: flex; flex-wrap: wrap; gap: 8px;
@@ -490,12 +523,17 @@
     </div>
   </div>
 
+  <div class="week-note-card">
+    <label for="weekNoteInput">Wochennotiz</label>
+    <textarea id="weekNoteInput" placeholder="z. B. Ofen vorausheizen, Joghurt aufteilen …" maxlength="500"></textarea>
+  </div>
+
   <h2 class="plan-title">Geplante Reihenfolge</h2>
   <div class="plan-list" id="planList"></div>
 
   <div class="start-actions">
     <button class="btn-primary" id="startCookBtn">Kochen starten →</button>
-    <a class="btn-ghost" href="index.html">Zurück zur Übersicht</a>
+    <a class="btn-ghost" href="index.html#overview">Zurück zur Übersicht</a>
   </div>
   <div class="load-error" id="loadError"></div>
 </section>
@@ -610,6 +648,17 @@
   </div>
 </div>
 
+<div class="overlay" id="prepGateOverlay" role="dialog" aria-modal="true" aria-labelledby="prepGateTitle">
+  <div class="dialog">
+    <h3 id="prepGateTitle">Noch nicht bereit?</h3>
+    <p id="prepGateMsg">Geräte, Zutaten oder Vorbereitung sind noch nicht abgehakt.</p>
+    <div class="row">
+      <button class="cancel" id="prepGateBack" type="button">Zur Vorbereitung</button>
+      <button class="confirm" id="prepGateSkip" type="button">Trotzdem kochen</button>
+    </div>
+  </div>
+</div>
+
 <div id="alarmFlash" aria-hidden="true"></div>
 
 <script>
@@ -626,6 +675,7 @@ const Kochmodus = (function () {
   const STORAGE_RECIPES  = "batchcooking_recipes";
   const STORAGE_STATE    = "batchcooking_cook_state";
   const STORAGE_SERVINGS = "batchcooking_servings";
+  const STORAGE_WEEKNOTE = "batchcooking_week_note";
   const ACCENT = ["a", "b"]; // recipe index -> css suffix (a=blue, b=red)
   const DEVICE_ICONS = {
     "Pfanne":       '<path d="M2 12h13a5 5 0 0 1 0 0v0a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5Z"/><path d="M15 12h7"/>',
@@ -647,6 +697,10 @@ const Kochmodus = (function () {
   let targetServings = 5;
   let plannedCookMinutes = 0;
   let draftMinutes = {}; // stepId -> adjustable minutes before start
+  let menuData = null;   // full recipes.json payload (weekNote, equipment, …)
+  let parallelDevices = new Set();
+  let pendingGateTarget = null;
+  let skipPrepGateOnce = false;
 
   let audioCtx = null;
   let wakeLock = null;
@@ -789,21 +843,63 @@ const Kochmodus = (function () {
   };
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
+  function normalizeIngKey(ing) {
+    const name = String(ing.name || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "");
+    const unit = String(ing.unit || "").toLowerCase().trim();
+    return `${name}|${unit}`;
+  }
+
   function buildIngredientPages(rcps) {
-    const groups = {};
+    // Merge identical products (same normalized name + unit) across recipes.
+    const buckets = Object.create(null);
     rcps.forEach((r, ri) => (r.ingredients || []).forEach(ing => {
       if (!ing || !ing.id) return;
-      const c = ing.category || "sonstiges";
+      const key = normalizeIngKey(ing);
+      if (!buckets[key]) {
+        buckets[key] = {
+          category: ing.category || "sonstiges",
+          name: ing.name || ing.id,
+          unit: ing.unit || "",
+          amount: 0,
+          optional: true,
+          parts: []
+        };
+      }
+      const b = buckets[key];
+      const n = Number(ing.amount);
+      if (Number.isFinite(n)) b.amount += n;
+      b.optional = b.optional && !!ing.optional;
+      if (b.category === "sonstiges" && ing.category) b.category = ing.category;
+      b.parts.push({ recipeIndex: ri, id: ing.id, amount: ing.amount, unit: ing.unit });
+    }));
+
+    const groups = {};
+    Object.keys(buckets).forEach(key => {
+      const b = buckets[key];
+      const c = b.category || "sonstiges";
+      const recipeIndexes = [...new Set(b.parts.map(p => p.recipeIndex))];
       (groups[c] = groups[c] || []).push({
-        recipeIndex: ri,
+        recipeIndex: recipeIndexes[0] || 0,
         item: {
-          id: ing.id,
-          text: ing.name || ing.id,
-          optional: !!ing.optional,
-          ingredient: ing
+          id: "ing:" + key,
+          text: b.name,
+          optional: !!b.optional,
+          recipeIndexes,
+          ingredient: {
+            name: b.name,
+            amount: b.amount,
+            unit: b.unit,
+            category: c,
+            optional: !!b.optional
+          }
         }
       });
-    }));
+    });
+
     const cats = Object.keys(groups).sort((a, b) => {
       const oa = (INGREDIENT_CATEGORIES[a] || {}).order || 99;
       const ob = (INGREDIENT_CATEGORIES[b] || {}).order || 99;
@@ -815,6 +911,33 @@ const Kochmodus = (function () {
       label: (INGREDIENT_CATEGORIES[c] || {}).label || cap(c),
       items: groups[c]
     }));
+  }
+
+  function buildEquipmentPages(data, rcps) {
+    const list = [];
+    const seen = new Set();
+    function pushEq(eq) {
+      if (!eq || !eq.id || seen.has(eq.id)) return;
+      seen.add(eq.id);
+      list.push(eq);
+    }
+    (data && data.equipment || []).forEach(pushEq);
+    (rcps || []).forEach(r => (r.equipment || []).forEach(pushEq));
+    if (!list.length) return [];
+    return [{
+      type: "equipment",
+      category: "equipment",
+      label: "Geräte & Werkzeug",
+      items: list.map(eq => ({
+        recipeIndex: 0,
+        item: {
+          id: eq.id,
+          text: eq.name,
+          optional: !!eq.optional,
+          equipment: eq
+        }
+      }))
+    }];
   }
 
   function buildPrepPages(rcps) {
@@ -866,13 +989,14 @@ const Kochmodus = (function () {
       const name = u.name || (ing && ing.name) || u.ingredientId || "";
       const amount = u.amount != null ? u.amount : (ing ? ing.amount : null);
       const unit = u.unit != null ? u.unit : (ing ? ing.unit : "");
-      return { name, amount, unit, id: u.ingredientId || name };
+      return { name, amount, unit, note: u.note || "", id: u.ingredientId || name };
     }).filter(Boolean);
   }
   function useChipHtml(use) {
     const qty = formatScaledAmount(use.amount, use.unit);
     const label = qty ? `${qty} ${use.name}` : use.name;
-    return `<span class="chip use">${esc(label)}</span>`;
+    const note = use.note ? `<small>${esc(use.note)}</small>` : "";
+    return `<span class="chip use">${esc(label)}${note}</span>`;
   }
   function renderUsesInto(el, recipe, uses) {
     if (!el) return;
@@ -883,6 +1007,34 @@ const Kochmodus = (function () {
   function ingredientLine(ing) {
     const qty = formatScaledAmount(ing.amount, ing.unit);
     return qty ? `${qty} ${ing.name}` : (ing.name || "");
+  }
+  function equipmentLine(eq) {
+    const qty = eq.qty != null ? `${eq.qty}× ` : "";
+    const note = eq.note ? ` — ${eq.note}` : "";
+    return `${qty}${eq.name || ""}${note}`;
+  }
+  function mergeTagsHtml(recipeIndexes) {
+    if (!recipeIndexes || recipeIndexes.length < 2) return "";
+    return `<span class="merge-tags">${recipeIndexes.map(i =>
+      `<span class="${ACCENT[i % ACCENT.length]}">${String.fromCharCode(65 + i)}</span>`
+    ).join("")}</span>`;
+  }
+
+  function deviceLabelFor(pageIndex) {
+    const p = pages[pageIndex];
+    if (!p || p.type !== "cook" || !p.step || !p.step.device) return null;
+    const device = p.step.device;
+    let prev = null;
+    for (let i = pageIndex - 1; i >= 0; i--) {
+      if (pages[i].type === "cook") { prev = pages[i]; break; }
+    }
+    if (prev && prev.recipeIndex === p.recipeIndex && prev.step.device === device) {
+      return `gleiche ${device} weiter`;
+    }
+    if (parallelDevices.has(device)) {
+      return `${device} ${p.recipeIndex + 1}`;
+    }
+    return device;
   }
 
   // =====================================================================
@@ -1089,9 +1241,12 @@ const Kochmodus = (function () {
     if (!window.speechSynthesis) return;
     const p = pages[state.pageIndex];
     let text = "";
-    if (p.type === "prep" || p.type === "ingredients") {
-      text = (p.type === "ingredients" ? "Zutaten. " : "") + p.label + ". " +
+    if (isChecklistPage(p)) {
+      const prefix = p.type === "equipment" ? "Geräte. "
+        : (p.type === "ingredients" ? "Zutaten. " : "");
+      text = prefix + p.label + ". " +
         p.items.map(({ item, recipeIndex }) => {
+          if (p.type === "equipment" && item.equipment) return equipmentLine(item.equipment);
           if (p.type === "ingredients" && item.ingredient) return ingredientLine(item.ingredient);
           const uses = resolveUses(recipes[recipeIndex], item.uses);
           const useTxt = uses.length
@@ -1102,9 +1257,13 @@ const Kochmodus = (function () {
     } else {
       const uses = resolveUses(p.recipe, p.step.uses);
       const useTxt = uses.length
-        ? ". Mengen: " + uses.map(u => formatScaledAmount(u.amount, u.unit) + " " + u.name).join(", ")
+        ? ". Mengen: " + uses.map(u => {
+            const base = formatScaledAmount(u.amount, u.unit) + " " + u.name;
+            return u.note ? base + " (" + u.note + ")" : base;
+          }).join(", ")
         : "";
-      text = displayText(p.step) + useTxt;
+      const dLabel = deviceLabelFor(state.pageIndex);
+      text = (dLabel ? dLabel + ". " : "") + displayText(p.step) + useTxt;
     }
     stopSpeaking();
     const u = new SpeechSynthesisUtterance(text);
@@ -1208,7 +1367,7 @@ const Kochmodus = (function () {
     wrap.innerHTML = "";
     pages.forEach((p, idx) => {
       const dot = document.createElement("button");
-      const cls = (p.type === "prep" || p.type === "ingredients")
+      const cls = (p.type === "prep" || p.type === "ingredients" || p.type === "equipment")
         ? "prep"
         : ACCENT[p.recipeIndex % ACCENT.length];
       dot.type = "button";
@@ -1223,7 +1382,7 @@ const Kochmodus = (function () {
   function isPageDone(idx) {
     const p = pages[idx];
     if (!p) return false;
-    if (p.type === "prep" || p.type === "ingredients") {
+    if (p.type === "prep" || p.type === "ingredients" || p.type === "equipment") {
       return p.items.every(({ item }) => state.checked[item.id]);
     }
     return !!state.checked[p.step.id];
@@ -1232,7 +1391,7 @@ const Kochmodus = (function () {
   function progressPercent() {
     let total = 0, done = 0;
     pages.forEach(p => {
-      if (p.type === "prep" || p.type === "ingredients") {
+      if (p.type === "prep" || p.type === "ingredients" || p.type === "equipment") {
         p.items.forEach(({ item }) => {
           total++;
           if (state.checked[item.id]) done++;
@@ -1284,25 +1443,44 @@ const Kochmodus = (function () {
   }
 
   function pageOwnIds(page) {
-    if (page.type === "prep" || page.type === "ingredients") {
+    if (page.type === "prep" || page.type === "ingredients" || page.type === "equipment") {
       return page.items.map(({ item }) => item.id);
     }
     return [page.step.id];
+  }
+
+  function isChecklistPage(p) {
+    return p && (p.type === "prep" || p.type === "ingredients" || p.type === "equipment");
+  }
+
+  function firstCookIndex() {
+    return pages.findIndex(p => p.type === "cook");
+  }
+
+  function prepPhaseComplete() {
+    const cookAt = firstCookIndex();
+    const end = cookAt < 0 ? pages.length : cookAt;
+    for (let i = 0; i < end; i++) {
+      if (!isPageDone(i)) return false;
+    }
+    return true;
   }
 
   function renderPage() {
     const p = pages[state.pageIndex];
     if (!p) return;
 
-    const kindLabel = p.type === "ingredients"
-      ? "Zutaten "
-      : (p.type === "prep" ? "Vorbereitung " : "Schritt ");
+    const kindLabel = p.type === "equipment"
+      ? "Geräte "
+      : (p.type === "ingredients"
+        ? "Zutaten "
+        : (p.type === "prep" ? "Vorbereitung " : "Schritt "));
     $("stepCount").textContent = kindLabel + (state.pageIndex + 1) + " / " + pages.length;
 
     // Speak button is available on both prep and cook pages.
     $("speakBtn").style.display = "inline-flex";
 
-    if (p.type === "prep" || p.type === "ingredients") renderPrepPage(p);
+    if (isChecklistPage(p)) renderPrepPage(p);
     else renderCookPage(p);
 
     renderBgTimers();
@@ -1336,7 +1514,9 @@ const Kochmodus = (function () {
     $("stepText").textContent = displayText(step);
 
     const chips = [];
-    if (step.device) chips.push(`<span class="chip">${icon(step.device)}${esc(step.device)}</span>`);
+    const dLabel = deviceLabelFor(state.pageIndex);
+    if (dLabel) chips.push(`<span class="chip device-hint">${icon(step.device)}${esc(dLabel)}</span>`);
+    else if (step.device) chips.push(`<span class="chip">${icon(step.device)}${esc(step.device)}</span>`);
     if (step.timeMinutes != null) {
       const pm = passiveMin(step);
       const label = pm > 0
@@ -1363,6 +1543,7 @@ const Kochmodus = (function () {
 
   function renderPrepPage(p) {
     const isIngredients = p.type === "ingredients";
+    const isEquipment = p.type === "equipment";
     $("card").className = "card prep";
     $("cardActions").style.display = "flex";
     $("tipBtn").classList.remove("show");
@@ -1375,7 +1556,7 @@ const Kochmodus = (function () {
     $("prepList").style.display = "flex";
     $("prepToolbar").style.display = "flex";
 
-    $("recipeTag").textContent = isIngredients ? "Zutaten" : "Vorbereitung";
+    $("recipeTag").textContent = isEquipment ? "Geräte" : (isIngredients ? "Zutaten" : "Vorbereitung");
     $("recipeName").textContent = `${p.items.length} ${p.items.length === 1 ? "Sache" : "Sachen"}`;
     $("stepText").textContent = isIngredients ? ("Zutaten · " + p.label) : p.label;
 
@@ -1384,10 +1565,11 @@ const Kochmodus = (function () {
 
     const list = $("prepList");
     list.innerHTML = p.items.map(({ recipeIndex, item }) => {
-      const suffix = ACCENT[recipeIndex % ACCENT.length];
+      const indexes = item.recipeIndexes || [recipeIndex];
+      const suffix = indexes.length > 1 ? "merged" : ACCENT[recipeIndex % ACCENT.length];
       const checked = !!state.checked[item.id];
       const recipe = recipes[recipeIndex];
-      const hasTimer = !isIngredients && item.timerMinutes != null;
+      const hasTimer = !isIngredients && !isEquipment && item.timerMinutes != null;
       const running = state.timers[item.id];
       let timerHtml = "";
       if (hasTimer) {
@@ -1409,8 +1591,10 @@ const Kochmodus = (function () {
 
       let mainText;
       let usesHtml = "";
-      if (isIngredients && item.ingredient) {
-        mainText = esc(ingredientLine(item.ingredient));
+      if (isEquipment && item.equipment) {
+        mainText = esc(equipmentLine(item.equipment));
+      } else if (isIngredients && item.ingredient) {
+        mainText = esc(ingredientLine(item.ingredient)) + mergeTagsHtml(indexes);
         if (item.optional) mainText += ` <span class="prep-optional">(meist da)</span>`;
       } else {
         mainText = esc(displayText(item));
@@ -1420,8 +1604,9 @@ const Kochmodus = (function () {
         }
       }
 
-      const optClass = (isIngredients && item.optional) ? "optional" : "";
-      return `<div class="prep-row ${suffix} ${checked ? "checked" : ""} ${optClass}" data-check="${item.id}" role="checkbox" aria-checked="${checked}" tabindex="0">
+      const optClass = ((isIngredients || isEquipment) && item.optional) ? "optional" : "";
+      const borderClass = indexes.length > 1 ? "a" : suffix;
+      return `<div class="prep-row ${borderClass} ${checked ? "checked" : ""} ${optClass}" data-check="${item.id}" role="checkbox" aria-checked="${checked}" tabindex="0">
         <span class="prep-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
         <span class="prep-text"><span>${mainText}</span>${usesHtml}</span>
         ${timerHtml}
@@ -1470,7 +1655,7 @@ const Kochmodus = (function () {
 
   function toggleCheckAllPrep() {
     const p = pages[state.pageIndex];
-    if (!p || (p.type !== "prep" && p.type !== "ingredients")) return;
+    if (!isChecklistPage(p)) return;
     const allChecked = p.items.every(({ item }) => state.checked[item.id]);
     p.items.forEach(({ item }) => {
       if (allChecked) delete state.checked[item.id];
@@ -1614,6 +1799,21 @@ const Kochmodus = (function () {
   // =====================================================================
   function goTo(idx) {
     if (idx < 0 || idx >= pages.length) return;
+    const cookAt = firstCookIndex();
+    const crossingIntoCook = cookAt >= 0 && idx >= cookAt && state.pageIndex < cookAt;
+    if (crossingIntoCook && !prepPhaseComplete() && !skipPrepGateOnce) {
+      pendingGateTarget = idx;
+      const missing = [];
+      for (let i = 0; i < cookAt; i++) {
+        if (!isPageDone(i)) missing.push(pages[i].label || ("Schritt " + (i + 1)));
+      }
+      $("prepGateMsg").textContent = missing.length
+        ? ("Noch offen: " + missing.slice(0, 4).join(", ") + (missing.length > 4 ? " …" : "") + ".")
+        : "Geräte, Zutaten oder Vorbereitung sind noch nicht abgehakt.";
+      showOverlay("prepGateOverlay");
+      return;
+    }
+    skipPrepGateOnce = false;
     stopSpeaking();
     state.pageIndex = idx;
     state.visited[idx] = true;
@@ -1642,7 +1842,7 @@ const Kochmodus = (function () {
       $("homeMsg").textContent = msg;
       showOverlay("homeOverlay");
     } else {
-      window.location.href = "index.html";
+      window.location.href = "index.html#overview";
     }
   }
 
@@ -1687,10 +1887,11 @@ const Kochmodus = (function () {
     $("servingsVal").textContent = String(targetServings);
     const prepCount = pages.filter(p => p.type === "prep").length;
     const ingCount = pages.filter(p => p.type === "ingredients").length;
+    const eqCount = pages.filter(p => p.type === "equipment").length;
     const cookCount = pages.filter(p => p.type === "cook").length;
     $("etaRow").innerHTML =
       `<span class="eta-chip">≈ ${totalMinutes} Min Kochen</span>
-       <span class="eta-chip">${ingCount ? ingCount + " Zutaten · " : ""}${prepCount} Prep · ${cookCount} Kochschritte</span>
+       <span class="eta-chip">${eqCount ? "Geräte · " : ""}${ingCount ? ingCount + " Zutaten · " : ""}${prepCount} Prep · ${cookCount} Kochschritte</span>
        <span class="eta-chip">${recipes.map(r => r.name).join("  +  ")}</span>`;
 
     if (deviceNeeds.length) {
@@ -1705,6 +1906,15 @@ const Kochmodus = (function () {
     }
 
     const rows = pages.map((p, idx) => {
+      if (p.type === "equipment") {
+        const items = p.items.map(({ item }) => esc(item.equipment ? equipmentLine(item.equipment) : item.text)).join(" · ");
+        return `<div class="plan-row prep">
+          <span class="plan-idx">${idx + 1}</span>
+          <span class="plan-tag">GERÄTE</span>
+          <span class="plan-text"><strong>${esc(p.label)}</strong> — ${items}</span>
+          <span class="plan-time"></span>
+        </div>`;
+      }
       if (p.type === "ingredients") {
         const items = p.items.map(({ item }) => esc(item.ingredient ? ingredientLine(item.ingredient) : item.text)).join(" · ");
         return `<div class="plan-row prep">
@@ -1726,10 +1936,11 @@ const Kochmodus = (function () {
       const suffix = ACCENT[p.recipeIndex % ACCENT.length];
       const pm = passiveMin(p.step);
       const t = pm > 0 ? `${stepDuration(p.step)}′ (${activeMin(p.step)}′ aktiv)` : `${stepDuration(p.step)}′`;
+      const dHint = deviceLabelFor(idx);
       return `<div class="plan-row ${suffix}">
         <span class="plan-idx">${idx + 1}</span>
         <span class="plan-tag">${String.fromCharCode(65 + p.recipeIndex)}</span>
-        <span class="plan-text">${esc(displayText(p.step))}</span>
+        <span class="plan-text">${esc(displayText(p.step))}${dHint ? " · <em>" + esc(dHint) + "</em>" : ""}</span>
         <span class="plan-time">${t}</span>
       </div>`;
     }).join("");
@@ -1779,15 +1990,31 @@ const Kochmodus = (function () {
     }
 
     recipes = data.recipes.slice(0, 2);
+    menuData = data;
     baseServings = Number(recipes[0].servings) || 5;
     targetServings = readStoredServings(baseServings);
     sig = menuSignature(data);
 
     const built = buildSequence(recipes);
     plannedCookMinutes = built.totalMinutes;
-    pages = [...buildIngredientPages(recipes), ...buildPrepPages(recipes), ...built.seq];
-    buildTimerIndex();
     const deviceNeeds = detectDeviceNeeds(recipes);
+    parallelDevices = new Set(deviceNeeds);
+    pages = [
+      ...buildEquipmentPages(data, recipes),
+      ...buildIngredientPages(recipes),
+      ...buildPrepPages(recipes),
+      ...built.seq
+    ];
+    buildTimerIndex();
+
+    // Week note: prefer local override, else JSON weekNote
+    try {
+      const storedNotes = JSON.parse(localStorage.getItem(STORAGE_WEEKNOTE) || "{}");
+      const note = (storedNotes && storedNotes[sig]) || data.weekNote || "";
+      $("weekNoteInput").value = note;
+    } catch (e) {
+      $("weekNoteInput").value = data.weekNote || "";
+    }
 
     renderStartScreen(data, built.totalMinutes, deviceNeeds);
 
@@ -1797,6 +2024,14 @@ const Kochmodus = (function () {
 
     $("servingsMinus").addEventListener("click", () => changeServings(-1));
     $("servingsPlus").addEventListener("click", () => changeServings(1));
+
+    $("weekNoteInput").addEventListener("input", () => {
+      try {
+        const all = JSON.parse(localStorage.getItem(STORAGE_WEEKNOTE) || "{}");
+        all[sig] = $("weekNoteInput").value;
+        localStorage.setItem(STORAGE_WEEKNOTE, JSON.stringify(all));
+      } catch (e) { /* ignore */ }
+    });
 
     function beginCooking({ resume } = {}) {
       if (resume && saved) {
@@ -1820,10 +2055,18 @@ const Kochmodus = (function () {
       }
     });
 
-    // Hash hook for future SPA router (#cook) and viewport/demo testing (#cook/autostart).
-    if (/^#cook(\/autostart)?$/.test(location.hash || "")) {
-      const forceFresh = /autostart/.test(location.hash);
+    // Hash hooks for SPA router / demos: #cook, #cook/autostart, #mise
+    const hash = location.hash || "";
+    if (/^#(cook|mise)(\/autostart)?$/.test(hash)) {
+      const forceFresh = /autostart/.test(hash) || hash.indexOf("mise") >= 0;
       beginCooking({ resume: alreadyStarted && !forceFresh });
+      if (/mise/.test(hash)) {
+        // Land on first checklist page (equipment/ingredients)
+        state.pageIndex = 0;
+        state.visited[0] = true;
+        saveState();
+        renderPage();
+      }
     }
 
     $("resumeContinue").addEventListener("click", () => {
@@ -1833,6 +2076,24 @@ const Kochmodus = (function () {
     $("resumeRestart").addEventListener("click", () => {
       hideOverlay("resumeOverlay");
       beginCooking({ resume: false });
+    });
+
+    $("prepGateBack").addEventListener("click", () => {
+      hideOverlay("prepGateOverlay");
+      const cookAt = firstCookIndex();
+      let target = 0;
+      for (let i = 0; i < (cookAt < 0 ? pages.length : cookAt); i++) {
+        if (!isPageDone(i)) { target = i; break; }
+      }
+      pendingGateTarget = null;
+      goTo(target);
+    });
+    $("prepGateSkip").addEventListener("click", () => {
+      hideOverlay("prepGateOverlay");
+      skipPrepGateOnce = true;
+      const target = pendingGateTarget != null ? pendingGateTarget : firstCookIndex();
+      pendingGateTarget = null;
+      goTo(target);
     });
 
     $("prevBtn").addEventListener("click", prev);
@@ -1869,8 +2130,8 @@ const Kochmodus = (function () {
     $("tipOverlay").addEventListener("click", (e) => { if (e.target === $("tipOverlay")) hideOverlay("tipOverlay"); });
 
     $("homeCancel").addEventListener("click", () => hideOverlay("homeOverlay"));
-    $("homeConfirm").addEventListener("click", () => { window.location.href = "index.html"; });
-    $("doneHome").addEventListener("click", () => { window.location.href = "index.html"; });
+    $("homeConfirm").addEventListener("click", () => { window.location.href = "index.html#overview"; });
+    $("doneHome").addEventListener("click", () => { window.location.href = "index.html#overview"; });
 
     const stage = $("stage");
     stage.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -1931,6 +2192,9 @@ const Kochmodus = (function () {
 })();
 
 document.addEventListener("DOMContentLoaded", Kochmodus.init);
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => { /* optional offline */ });
+}
 </script>
 
 </body>
