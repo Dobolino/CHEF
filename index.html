@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BatchCook">
+<meta name="theme-color" content="#14171c">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <title>Batch Cooking · Übersicht</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -19,6 +26,10 @@
     --accent-b: #ff5c5c;
     --accent-b-dim: #ff5c5c33;
     --freeze: #35d0ba;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -28,8 +39,13 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', sans-serif;
-    min-height: 100vh;
-    padding: clamp(20px, 4vw, 48px);
+    min-height: 100%;
+    min-height: 100dvh;
+    padding: calc(var(--safe-t) + clamp(20px, 4vw, 48px))
+             max(clamp(20px, 4vw, 48px), var(--safe-r))
+             calc(var(--safe-b) + clamp(20px, 4vw, 48px))
+             max(clamp(20px, 4vw, 48px), var(--safe-l));
+    touch-action: manipulation;
   }
 
   header {
@@ -83,7 +99,7 @@
 
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
     gap: 24px;
   }
 
@@ -177,6 +193,11 @@
     grid-template-columns: repeat(5, 1fr);
     gap: 4px;
     font-family: 'IBM Plex Mono', monospace;
+  }
+
+  @media (max-width: 400px) {
+    .macros { grid-template-columns: repeat(3, 1fr); row-gap: 10px; }
+    .macros .cell:nth-child(4), .macros .cell:nth-child(5) { grid-column: span 1; }
   }
 
   .macros .cell { text-align: center; }
@@ -332,10 +353,15 @@
   });
 
   // On load: use whatever was last saved in localStorage, otherwise show the empty state.
-  const saved = localStorage.getItem("batchcooking_recipes");
-  if (saved) {
-    renderRecipes(JSON.parse(saved));
-  } else {
+  try {
+    const saved = localStorage.getItem("batchcooking_recipes");
+    if (saved) {
+      renderRecipes(JSON.parse(saved));
+    } else {
+      renderRecipes({ recipes: [] });
+    }
+  } catch (err) {
+    try { localStorage.removeItem("batchcooking_recipes"); } catch (e) { /* ignore */ }
     renderRecipes({ recipes: [] });
   }
 </script>

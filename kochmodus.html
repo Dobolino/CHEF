@@ -2,9 +2,14 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BatchCook">
+<meta name="theme-color" content="#14171c">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
 <title>Batch Cooking · Kochmodus</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -24,15 +29,24 @@
     --freeze: #35d0ba;
 
     /* Cook-mode specific spacing: big touch targets for wet/greasy fingers */
-    --nav-h: clamp(76px, 12vh, 104px);
+    --nav-h: clamp(64px, 11vh, 96px);
+    --safe-t: env(safe-area-inset-top, 0px);
     --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --pad-x: max(clamp(12px, 3vw, 28px), var(--safe-l), var(--safe-r));
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+  html {
+    /* Prefer dynamic viewport; fall back for older Safari */
+    height: 100%;
+    height: 100dvh;
+  }
+
   html, body {
     margin: 0;
-    height: 100%;
     background: var(--bg);
     color: var(--text);
     font-family: 'Inter', sans-serif;
@@ -40,19 +54,37 @@
     overscroll-behavior: none;
     -webkit-user-select: none;
     user-select: none;
-    touch-action: pan-y;
+    /* pan-y allows vertical scroll; manipulation blocks double-tap zoom */
+    touch-action: manipulation;
   }
 
-  .screen { display: none; height: 100%; }
+  body {
+    min-height: 100%;
+    min-height: 100dvh;
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .screen { display: none; height: 100%; max-height: 100%; }
   .screen.active { display: flex; flex-direction: column; }
 
+  button:focus-visible, a:focus-visible, .dot:focus-visible, .prep-row:focus-visible {
+    outline: 2px solid var(--freeze);
+    outline-offset: 2px;
+  }
+
   /* ===================== START SCREEN ===================== */
-  #startScreen { padding: clamp(20px, 4vw, 48px); overflow-y: auto; }
+  #startScreen {
+    padding: calc(var(--safe-t) + clamp(16px, 3vw, 40px)) var(--pad-x) calc(var(--safe-b) + clamp(16px, 3vw, 40px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
   .start-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
   .start-head h1 {
     font-family: 'Space Grotesk', sans-serif; font-weight: 700;
-    font-size: clamp(26px, 4vw, 38px); margin: 0; letter-spacing: -0.01em;
+    font-size: clamp(24px, 4vw, 38px); margin: 0; letter-spacing: -0.01em;
   }
   .start-head .week { font-family: 'IBM Plex Mono', monospace; font-size: 14px; color: var(--text-muted); }
 
@@ -71,6 +103,21 @@
   }
   .warn-box svg { width: 20px; height: 20px; flex: none; }
 
+  .servings-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; margin-bottom: 20px; max-width: 420px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .servings-card label { font-weight: 600; font-size: 15px; }
+  .servings-ctrl { display: flex; align-items: center; gap: 8px; }
+  .servings-ctrl button {
+    width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface-raised); color: var(--text); font-size: 22px; font-weight: 700; cursor: pointer;
+  }
+  .servings-ctrl .val {
+    font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; min-width: 2ch; text-align: center;
+  }
+
   .plan-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; margin: 0 0 12px; }
   .plan-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; max-width: 720px; }
   .plan-row {
@@ -87,20 +134,20 @@
   }
   .plan-row.a .plan-tag { color: var(--accent-a); background: var(--accent-a-dim); }
   .plan-row.b .plan-tag { color: var(--accent-b); background: var(--accent-b-dim); }
-  .plan-text { flex: 1; font-size: 15px; line-height: 1.4; }
+  .plan-text { flex: 1; font-size: 15px; line-height: 1.4; min-width: 0; }
   .plan-time { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-muted); flex: none; }
 
   .start-actions { display: flex; gap: 14px; flex-wrap: wrap; }
   .btn-primary {
-    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(18px, 3vw, 20px);
     background: var(--accent-a); color: #04132e; border: none; border-radius: 14px;
-    padding: 20px 34px; cursor: pointer; min-height: 64px;
+    padding: 18px 28px; cursor: pointer; min-height: 56px;
   }
   .btn-primary:active { filter: brightness(0.92); }
   .btn-ghost {
     font-family: 'Inter', sans-serif; font-weight: 600; font-size: 16px;
     background: var(--surface); color: var(--text); border: 1px solid var(--line);
-    border-radius: 14px; padding: 20px 28px; cursor: pointer; min-height: 64px;
+    border-radius: 14px; padding: 18px 24px; cursor: pointer; min-height: 56px;
     text-decoration: none; display: inline-flex; align-items: center;
   }
   .btn-ghost:active { background: var(--surface-raised); }
@@ -108,18 +155,27 @@
   .load-error { color: var(--accent-b); font-size: 15px; margin-top: 16px; }
 
   /* ===================== COOK SCREEN ===================== */
-  #cookScreen { position: relative; }
+  #cookScreen { position: relative; min-height: 0; }
 
   /* Top bar: progress + background timers */
   .topbar {
-    flex: none; padding: calc(env(safe-area-inset-top, 0px) + 10px) clamp(12px, 3vw, 28px) 8px;
-    display: flex; flex-direction: column; gap: 10px;
+    flex: none;
+    padding: calc(var(--safe-t) + 8px) var(--pad-x) 8px;
+    display: flex; flex-direction: column; gap: 8px;
     border-bottom: 1px solid var(--line); background: var(--bg);
   }
-  .progress { display: flex; gap: 6px; align-items: center; }
+  .progress {
+    display: flex; gap: 4px; align-items: center;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 2px 0;
+  }
+  .progress::-webkit-scrollbar { display: none; }
   .dot {
-    flex: 1; height: 8px; border-radius: 4px; background: var(--line);
-    cursor: pointer; transition: background 0.15s; min-width: 6px;
+    flex: 1 0 auto; height: 8px; border-radius: 4px; background: var(--line);
+    cursor: pointer; transition: background 0.15s;
+    min-width: 8px; max-width: 28px;
   }
   .dot.visited.a { background: var(--accent-a-dim); }
   .dot.visited.b { background: var(--accent-b-dim); }
@@ -127,8 +183,9 @@
   .dot.done.b { background: var(--accent-b); }
   .dot.current { box-shadow: 0 0 0 2px var(--text); height: 12px; }
 
-  .topmeta { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .topmeta { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .stepcount { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-muted); }
+  .live-eta { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--freeze); font-weight: 600; }
   .wake-ind { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
   .wake-ind .led { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
   .wake-ind.on .led { background: var(--freeze); box-shadow: 0 0 6px var(--freeze); }
@@ -137,9 +194,10 @@
   .bg-timers { display: flex; gap: 8px; flex-wrap: wrap; min-height: 0; }
   .bg-timers:empty { display: none; }
   .bg-chip {
-    font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600;
-    padding: 7px 12px; border-radius: 999px; cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;
+    padding: 8px 12px; border-radius: 12px; cursor: pointer;
     display: inline-flex; align-items: center; gap: 8px; border: 1px solid;
+    min-height: 40px;
   }
   .bg-chip .led { width: 9px; height: 9px; border-radius: 50%; }
   .bg-chip.a { color: var(--accent-a); background: var(--accent-a-dim); border-color: var(--accent-a-dim); }
@@ -151,73 +209,91 @@
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 
   /* Main focus card */
-  .stage { flex: 1; overflow-y: auto; display: flex; padding: clamp(16px, 3vw, 40px); }
+  .stage {
+    flex: 1; min-height: 0; overflow-y: auto; display: flex;
+    padding: clamp(12px, 2.5vw, 32px) var(--pad-x);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
   .card {
-    flex: 1; display: flex; flex-direction: column;
+    flex: 1; display: flex; flex-direction: column; min-width: 0;
     background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
-    border-top-width: 8px; padding: clamp(20px, 4vw, 44px); position: relative;
+    border-top-width: 8px; padding: clamp(16px, 3.5vw, 44px); position: relative;
   }
   .card.a { border-top-color: var(--accent-a); }
   .card.b { border-top-color: var(--accent-b); }
 
-  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: clamp(16px, 3vh, 28px); }
-  .recipe-name { display: flex; align-items: center; gap: 12px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: clamp(12px, 2.5vh, 24px); padding-right: 120px; }
+  .recipe-name { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
   .recipe-name .tag {
-    font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600;
     padding: 5px 10px; border-radius: 7px; text-transform: uppercase; letter-spacing: 0.04em;
   }
   .card.a .recipe-name .tag { color: var(--accent-a); background: var(--accent-a-dim); }
   .card.b .recipe-name .tag { color: var(--accent-b); background: var(--accent-b-dim); }
   .recipe-name .rn {
-    font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: clamp(15px, 2.2vw, 19px);
+    font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: clamp(14px, 2.2vw, 19px);
     color: var(--text-muted);
   }
 
   .step-text {
     font-family: 'Space Grotesk', sans-serif; font-weight: 700;
-    font-size: clamp(28px, 5.2vw, 52px); line-height: 1.15; letter-spacing: -0.01em;
-    margin: 0 0 clamp(20px, 4vh, 36px);
+    font-size: clamp(22px, 5vw, 48px); line-height: 1.18; letter-spacing: -0.01em;
+    margin: 0 0 clamp(16px, 3vh, 32px);
+    overflow-wrap: anywhere;
   }
 
-  .chips { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: auto; }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: auto; }
   .chip {
-    font-family: 'IBM Plex Mono', monospace; font-size: clamp(15px, 2vw, 18px); font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace; font-size: clamp(14px, 2vw, 18px); font-weight: 600;
     background: var(--surface-raised); border: 1px solid var(--line); border-radius: 12px;
-    padding: 12px 18px; display: inline-flex; align-items: center; gap: 10px;
+    padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px;
   }
-  .chip svg { width: 20px; height: 20px; opacity: 0.85; }
+  .chip svg { width: 18px; height: 18px; opacity: 0.85; flex: none; }
   .chip.temp { color: var(--accent-b); }
 
   /* Timer block */
-  .timer-block { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: clamp(24px, 4vh, 40px); }
+  .timer-block { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: clamp(20px, 3.5vh, 36px); }
   .timer-display {
     font-family: 'IBM Plex Mono', monospace; font-weight: 600;
-    font-size: clamp(40px, 8vw, 76px); line-height: 1; letter-spacing: 0.02em;
+    font-size: clamp(36px, 9vw, 72px); line-height: 1; letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
   }
   .timer-display.ring { color: var(--accent-b); animation: pulse 0.7s infinite; }
   .timer-btn {
-    font-family: 'Inter', sans-serif; font-weight: 700; font-size: clamp(16px, 2vw, 20px);
-    border: none; border-radius: 14px; padding: 18px 28px; cursor: pointer; min-height: 60px;
-    display: inline-flex; align-items: center; gap: 10px;
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: clamp(15px, 2vw, 19px);
+    border: none; border-radius: 14px; padding: 16px 22px; cursor: pointer; min-height: 52px;
+    display: inline-flex; align-items: center; gap: 8px;
   }
   .card.a .timer-btn.start { background: var(--accent-a); color: #04132e; }
   .card.b .timer-btn.start { background: var(--accent-b); color: #2e0606; }
   .timer-btn.reset { background: var(--surface-raised); color: var(--text); border: 1px solid var(--line); }
-  .timer-btn svg { width: 22px; height: 22px; }
+  .timer-btn.svg { width: 22px; height: 22px; }
+  .timer-adj {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface-raised); border: 1px solid var(--line); border-radius: 14px; padding: 6px;
+  }
+  .timer-adj button {
+    width: 44px; height: 44px; border-radius: 10px; border: none;
+    background: var(--surface); color: var(--text); font-weight: 700; font-size: 18px; cursor: pointer;
+  }
+  .timer-adj .mins {
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 16px; min-width: 4.5ch; text-align: center;
+  }
 
   /* Bottom-right action cluster on the card */
-  .card-actions { position: absolute; top: clamp(16px, 3vw, 28px); right: clamp(16px, 3vw, 28px); display: flex; gap: 10px; }
+  .card-actions { position: absolute; top: clamp(12px, 2.5vw, 24px); right: clamp(12px, 2.5vw, 24px); display: flex; gap: 8px; }
   .icon-btn {
-    width: 56px; height: 56px; border-radius: 14px; border: 1px solid var(--line);
+    width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--line);
     background: var(--surface-raised); color: var(--text); cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
   }
   .icon-btn:active { background: var(--line); }
-  .icon-btn svg { width: 26px; height: 26px; }
+  .icon-btn svg { width: 24px; height: 24px; }
   .icon-btn.checked { background: var(--freeze); color: #052b26; border-color: var(--freeze); }
   .icon-btn.tip-btn { display: none; }
   .icon-btn.tip-btn.show { display: inline-flex; color: var(--freeze); }
+  .icon-btn.speak-btn.active { color: var(--freeze); border-color: var(--freeze); }
 
   .skipped-note {
     font-size: 14px; color: var(--freeze); font-weight: 600; margin-top: 14px;
@@ -225,83 +301,97 @@
   }
   .skipped-note.show { display: block; }
 
+  .prep-toolbar {
+    display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; align-items: center;
+  }
+  .prep-all-btn {
+    font-family: 'Inter', sans-serif; font-weight: 700; font-size: 14px;
+    background: rgba(53,208,186,0.14); color: var(--freeze); border: 1px solid rgba(53,208,186,0.35);
+    border-radius: 10px; padding: 10px 14px; cursor: pointer; min-height: 44px;
+  }
+
   /* Bottom navigation: three big fixed buttons */
   .nav {
-    flex: none; display: grid; grid-template-columns: 1fr 0.7fr 1fr; gap: 10px;
-    padding: 10px clamp(12px, 3vw, 28px) calc(10px + var(--safe-b));
+    flex: none; display: grid; grid-template-columns: 1fr 0.65fr 1fr; gap: 8px;
+    padding: 8px var(--pad-x) calc(8px + var(--safe-b));
     border-top: 1px solid var(--line); background: var(--bg);
   }
   .nav button {
-    min-height: var(--nav-h); border-radius: 16px; cursor: pointer;
-    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(18px, 2.6vw, 24px);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    border: 1px solid var(--line);
+    min-height: var(--nav-h); border-radius: 14px; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(15px, 2.4vw, 22px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    border: 1px solid var(--line); padding: 8px 4px;
   }
-  .nav button svg { width: 30px; height: 30px; }
+  .nav button svg { width: 26px; height: 26px; }
   .nav .prev { background: var(--surface); color: var(--text); }
   .nav .next { background: var(--accent-a); color: #04132e; border-color: transparent; }
   .nav .next.finish { background: var(--freeze); color: #052b26; }
   /* Home is de-emphasised and set apart so a greasy mis-tap doesn't quit */
-  .nav .home { background: transparent; color: var(--text-muted); font-size: 14px; }
+  .nav .home { background: transparent; color: var(--text-muted); font-size: 13px; }
   .nav button:active { filter: brightness(0.9); }
   .nav button:disabled { opacity: 0.35; }
 
   /* ===================== MIS EN PLACE (PREP) ===================== */
   .card.prep { border-top-color: var(--freeze); }
   .card.prep .recipe-name .tag { color: var(--freeze); background: rgba(53,208,186,0.14); }
+  .card.prep .card-head { padding-right: 0; }
   .dot.prep.visited { background: rgba(53,208,186,0.35); }
   .dot.prep.done { background: var(--freeze); }
   .plan-row.prep { border-left-color: var(--freeze); }
   .plan-row.prep .plan-tag { color: var(--freeze); background: rgba(53,208,186,0.14); }
 
-  .prep-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 auto; }
+  .prep-list { display: flex; flex-direction: column; gap: 10px; margin: 0 0 auto; }
   .prep-row {
-    display: flex; align-items: center; gap: 14px; cursor: pointer;
+    display: flex; align-items: center; gap: 12px; cursor: pointer;
     background: var(--surface-raised); border: 1px solid var(--line); border-radius: 14px;
-    padding: 16px 18px; border-left-width: 5px;
+    padding: 14px 14px; border-left-width: 5px; flex-wrap: wrap;
   }
   .prep-row.a { border-left-color: var(--accent-a); }
   .prep-row.b { border-left-color: var(--accent-b); }
   .prep-row:active { background: var(--line); }
   .prep-box {
-    flex: none; width: 34px; height: 34px; border-radius: 9px;
+    flex: none; width: 36px; height: 36px; border-radius: 9px;
     border: 2px solid var(--line); display: inline-flex; align-items: center; justify-content: center;
     color: transparent; transition: background 0.12s;
   }
   .prep-box svg { width: 22px; height: 22px; }
   .prep-row.checked .prep-box { background: var(--freeze); border-color: var(--freeze); color: #052b26; }
-  .prep-text { flex: 1; font-size: clamp(17px, 2.4vw, 22px); line-height: 1.35; }
+  .prep-text { flex: 1 1 140px; font-size: clamp(16px, 2.3vw, 21px); line-height: 1.35; min-width: 0; }
   .prep-row.checked .prep-text { color: var(--text-muted); text-decoration: line-through; }
+  .prep-actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
   .prep-timer {
-    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 20px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 18px;
     color: var(--freeze); flex: none; font-variant-numeric: tabular-nums;
   }
   .prep-timer.ring { animation: pulse 0.7s infinite; }
   .prep-tbtn {
-    flex: none; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 15px;
-    border: none; border-radius: 10px; padding: 12px 16px; cursor: pointer; min-height: 48px;
+    flex: none; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 14px;
+    border: none; border-radius: 10px; padding: 10px 14px; cursor: pointer; min-height: 44px;
   }
   .prep-tbtn.start.a { background: var(--accent-a); color: #04132e; }
   .prep-tbtn.start.b { background: var(--accent-b); color: #2e0606; }
-  .prep-tbtn.reset { background: var(--surface); color: var(--text); border: 1px solid var(--line); font-size: 20px; padding: 12px 18px; }
+  .prep-tbtn.reset { background: var(--surface); color: var(--text); border: 1px solid var(--line); font-size: 18px; padding: 10px 14px; }
 
   /* ===================== OVERLAYS ===================== */
   .overlay {
     position: fixed; inset: 0; background: rgba(10,12,16,0.82);
-    display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50;
+    display: none; align-items: center; justify-content: center;
+    padding: calc(24px + var(--safe-t)) calc(24px + var(--safe-r)) calc(24px + var(--safe-b)) calc(24px + var(--safe-l));
+    z-index: 50;
     backdrop-filter: blur(3px);
   }
   .overlay.active { display: flex; }
   .dialog {
     background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
-    padding: clamp(24px, 4vw, 40px); max-width: 520px; width: 100%; text-align: center;
+    padding: clamp(22px, 4vw, 40px); max-width: 520px; width: 100%; text-align: center;
+    max-height: calc(100dvh - 48px); overflow-y: auto;
   }
-  .dialog h3 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; margin: 0 0 12px; }
+  .dialog h3 { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: clamp(20px, 4vw, 24px); margin: 0 0 12px; }
   .dialog p { color: var(--text-muted); font-size: 16px; line-height: 1.5; margin: 0 0 24px; }
   .dialog .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
   .dialog button {
     font-family: 'Inter', sans-serif; font-weight: 700; font-size: 17px;
-    padding: 16px 26px; border-radius: 12px; cursor: pointer; min-height: 56px; border: 1px solid var(--line);
+    padding: 16px 26px; border-radius: 12px; cursor: pointer; min-height: 52px; border: 1px solid var(--line);
   }
   .dialog .confirm { background: var(--accent-b); color: #fff; border-color: transparent; }
   .dialog .cancel { background: var(--surface-raised); color: var(--text); }
@@ -313,17 +403,49 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--freeze); margin-bottom: 10px;
   }
-  #tipOverlay .tip-text { font-size: 20px; line-height: 1.5; color: var(--text); }
+  #tipOverlay .tip-text { font-size: clamp(17px, 3vw, 20px); line-height: 1.5; color: var(--text); }
+
+  /* iOS haptic fallback: brief full-screen flash when a timer rings */
+  #alarmFlash {
+    position: fixed; inset: 0; pointer-events: none; z-index: 80;
+    background: var(--accent-b); opacity: 0; transition: opacity 0.12s linear;
+  }
+  #alarmFlash.on { opacity: 0.28; }
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
+    #alarmFlash { transition: none !important; }
+  }
+
+  /* Narrow phones (SE / mini) */
+  @media (max-width: 400px) {
+    .card-head { padding-right: 108px; }
+    .icon-btn { width: 44px; height: 44px; }
+    .nav { grid-template-columns: 1fr 0.55fr 1fr; gap: 6px; }
+    .nav button svg { width: 22px; height: 22px; }
+    .plan-row { flex-wrap: wrap; }
+    .plan-time { width: 100%; text-align: right; }
+  }
+
+  /* Short landscape viewports: reclaim vertical space */
+  @media (max-height: 500px) and (orientation: landscape) {
+    :root { --nav-h: 52px; }
+    .topbar { gap: 4px; padding-top: calc(var(--safe-t) + 4px); padding-bottom: 4px; }
+    .stage { padding-top: 8px; padding-bottom: 8px; }
+    .card { padding: 14px 16px; border-radius: 14px; }
+    .step-text { font-size: clamp(18px, 4.2vw, 28px); margin-bottom: 10px; }
+    .timer-display { font-size: clamp(28px, 7vw, 48px); }
+    .card-actions { top: 10px; right: 10px; }
+    .icon-btn { width: 44px; height: 44px; }
+    .nav button { font-size: 14px; gap: 0; min-height: 48px; }
+    .nav button svg { width: 18px; height: 18px; }
   }
 </style>
 </head>
 <body>
 
 <!-- ===================== START SCREEN ===================== -->
-<section id="startScreen" class="screen active">
+<section id="startScreen" class="screen active" aria-label="Kochmodus Start">
   <div class="start-head">
     <h1>Kochmodus</h1>
     <div class="week" id="weekLabel"></div>
@@ -337,6 +459,15 @@
   <div class="eta-row" id="etaRow"></div>
   <div id="deviceWarn"></div>
 
+  <div class="servings-card" id="servingsCard">
+    <label for="servingsVal">Portionen</label>
+    <div class="servings-ctrl">
+      <button type="button" id="servingsMinus" aria-label="Weniger Portionen">−</button>
+      <span class="val" id="servingsVal" aria-live="polite">5</span>
+      <button type="button" id="servingsPlus" aria-label="Mehr Portionen">+</button>
+    </div>
+  </div>
+
   <h2 class="plan-title">Geplante Reihenfolge</h2>
   <div class="plan-list" id="planList"></div>
 
@@ -348,23 +479,27 @@
 </section>
 
 <!-- ===================== COOK SCREEN ===================== -->
-<section id="cookScreen" class="screen">
+<section id="cookScreen" class="screen" aria-label="Kochschritte">
   <div class="topbar">
-    <div class="progress" id="progress"></div>
+    <div class="progress" id="progress" role="navigation" aria-label="Fortschritt"></div>
     <div class="topmeta">
       <span class="stepcount" id="stepCount"></span>
-      <span class="wake-ind" id="wakeInd"><span class="led"></span>Display wach</span>
+      <span class="live-eta" id="liveEta" aria-live="polite"></span>
+      <span class="wake-ind" id="wakeInd"><span class="led"></span><span class="wake-label">Display wach</span></span>
     </div>
-    <div class="bg-timers" id="bgTimers"></div>
+    <div class="bg-timers" id="bgTimers" aria-label="Hintergrund-Timer"></div>
   </div>
 
   <div class="stage" id="stage">
     <div class="card" id="card">
       <div class="card-actions" id="cardActions">
-        <button class="icon-btn tip-btn" id="tipBtn" aria-label="Tipp anzeigen">
+        <button class="icon-btn tip-btn" id="tipBtn" aria-label="Tipp anzeigen" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.4 1 2.5v1h6v-1c0-1.1.3-1.8 1-2.5A6 6 0 0 0 12 3Z"/><path d="M9 21h6"/></svg>
         </button>
-        <button class="icon-btn" id="checkBtn" aria-label="Schritt abhaken">
+        <button class="icon-btn speak-btn" id="speakBtn" aria-label="Schritt vorlesen" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a8 8 0 0 1 0 12"/></svg>
+        </button>
+        <button class="icon-btn" id="checkBtn" aria-label="Schritt abhaken" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
         </button>
       </div>
@@ -380,25 +515,29 @@
 
       <div class="chips" id="chips"></div>
 
+      <div class="prep-toolbar" id="prepToolbar" style="display:none;">
+        <button type="button" class="prep-all-btn" id="prepCheckAll">Alle abhaken</button>
+      </div>
+
       <!-- Mis en place checklist (shown on prep pages instead of chips/timer) -->
       <div class="prep-list" id="prepList" style="display:none;"></div>
 
-      <div class="skipped-note" id="skippedNote">⚠︎ Übersprungen — noch nicht abgehakt</div>
+      <div class="skipped-note" id="skippedNote" role="status">Übersprungen — noch nicht abgehakt</div>
 
       <div class="timer-block" id="timerBlock"></div>
     </div>
   </div>
 
-  <nav class="nav">
-    <button class="prev" id="prevBtn">
+  <nav class="nav" aria-label="Navigation">
+    <button class="prev" id="prevBtn" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       Zurück
     </button>
-    <button class="home" id="homeBtn">
+    <button class="home" id="homeBtn" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
       Home
     </button>
-    <button class="next" id="nextBtn">
+    <button class="next" id="nextBtn" type="button">
       Weiter
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
     </button>
@@ -406,47 +545,49 @@
 </section>
 
 <!-- ===================== OVERLAYS ===================== -->
-<div class="overlay" id="tipOverlay">
+<div class="overlay" id="tipOverlay" role="dialog" aria-modal="true" aria-labelledby="tipLabel">
   <div class="dialog">
-    <div class="tip-label">Tipp</div>
+    <div class="tip-label" id="tipLabel">Tipp</div>
     <div class="tip-text" id="tipText"></div>
     <div class="row" style="margin-top:24px;">
-      <button class="cancel" id="tipClose">Schliessen</button>
+      <button class="cancel" id="tipClose" type="button">Schliessen</button>
     </div>
   </div>
 </div>
 
-<div class="overlay" id="homeOverlay">
+<div class="overlay" id="homeOverlay" role="dialog" aria-modal="true" aria-labelledby="homeTitle">
   <div class="dialog">
-    <h3>Kochmodus verlassen?</h3>
+    <h3 id="homeTitle">Kochmodus verlassen?</h3>
     <p id="homeMsg">Es läuft noch ein Timer und der Kochvorgang ist nicht abgeschlossen. Dein Fortschritt bleibt gespeichert.</p>
     <div class="row">
-      <button class="cancel" id="homeCancel">Weiterkochen</button>
-      <button class="confirm" id="homeConfirm">Verlassen</button>
+      <button class="cancel" id="homeCancel" type="button">Weiterkochen</button>
+      <button class="confirm" id="homeConfirm" type="button">Verlassen</button>
     </div>
   </div>
 </div>
 
-<div class="overlay" id="resumeOverlay">
+<div class="overlay" id="resumeOverlay" role="dialog" aria-modal="true" aria-labelledby="resumeTitle">
   <div class="dialog">
-    <h3>Weitermachen?</h3>
+    <h3 id="resumeTitle">Weitermachen?</h3>
     <p id="resumeMsg">Du hast diesen Kochvorgang schon begonnen.</p>
     <div class="row">
-      <button class="cancel" id="resumeRestart">Neu starten</button>
-      <button class="go" id="resumeContinue">Weitermachen</button>
+      <button class="cancel" id="resumeRestart" type="button">Neu starten</button>
+      <button class="go" id="resumeContinue" type="button">Weitermachen</button>
     </div>
   </div>
 </div>
 
-<div class="overlay" id="doneOverlay">
+<div class="overlay" id="doneOverlay" role="dialog" aria-modal="true" aria-labelledby="doneTitle">
   <div class="dialog">
-    <h3>Fertig! 🎉</h3>
+    <h3 id="doneTitle">Fertig!</h3>
     <p>Alle Schritte durch. Sauce/Limette separat einpacken, dann ab in die Boxen.</p>
     <div class="row">
-      <button class="go" id="doneHome">Zur Übersicht</button>
+      <button class="go" id="doneHome" type="button">Zur Übersicht</button>
     </div>
   </div>
 </div>
+
+<div id="alarmFlash" aria-hidden="true"></div>
 
 <script>
 /* =========================================================================
@@ -459,8 +600,9 @@ const Kochmodus = (function () {
   "use strict";
 
   // ---- Constants -------------------------------------------------------
-  const STORAGE_RECIPES = "batchcooking_recipes";
-  const STORAGE_STATE   = "batchcooking_cook_state";
+  const STORAGE_RECIPES  = "batchcooking_recipes";
+  const STORAGE_STATE    = "batchcooking_cook_state";
+  const STORAGE_SERVINGS = "batchcooking_servings";
   const ACCENT = ["a", "b"]; // recipe index -> css suffix (a=blue, b=red)
   const DEVICE_ICONS = {
     "Pfanne":       '<path d="M2 12h13a5 5 0 0 1 0 0v0a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5Z"/><path d="M15 12h7"/>',
@@ -468,19 +610,27 @@ const Kochmodus = (function () {
     "Ofen":         '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h4"/>',
     "Arbeitsplatte":'<path d="M3 15h18"/><path d="M5 15v4M19 15v4"/><path d="M4 15l3-7h10l3 7"/>'
   };
+  // Units we scale with portion count (German kitchen texts).
+  const SCALE_UNITS = "g|kg|ml|l|EL|TL|Stück|Limetten?|Zwiebeln?|Tomaten|Paprika";
 
   // ---- Module state ----------------------------------------------------
-  let recipes = [];      // the two recipes [A, B]
+  let recipes = [];      // the recipes [A, B] (1–2)
   let pages = [];        // ordered sequence of prep + cook pages
   let timerIndex = {};   // timer-capable id -> { recipeIndex, label, pageIndex }
   let sig = "";          // signature of the loaded menu (to invalidate old state)
   let state = null;      // persisted cook state
   let cookingStarted = false;
+  let baseServings = 5;
+  let targetServings = 5;
+  let plannedCookMinutes = 0;
+  let draftMinutes = {}; // stepId -> adjustable minutes before start
 
   let audioCtx = null;
   let wakeLock = null;
   let ringing = {};      // stepId -> true (timer finished, alarm active)
   let alarmInterval = null;
+  let tickTimer = null;
+  let speaking = false;
 
   // Swipe tracking
   let touchStartX = 0, touchStartY = 0, touchActive = false;
@@ -497,32 +647,43 @@ const Kochmodus = (function () {
   //  during which a timer runs unattended. Backward compatible: if activeMinutes
   //  is missing, the whole step counts as active (no phantom free time).
   //
-  //  A step becomes "readyAt = T + active": the cook is free the moment the
-  //  active part is done, so within a recipe we move on immediately while the
-  //  passive tail keeps ticking in the background.
+  //  Within a recipe, the next step that needs the SAME device waits until that
+  //  device is free (full step duration), so a pot still simmering is not reused.
   //
   //  Selection priority among the recipes that are ready:
   //    1. Largest passive slack first  -> kick off long timers (boiling grains)
-  //       as early as possible so their wait overlaps the other recipe's work.
-  //    2. Device stickiness -> if the previously placed step's recipe can
-  //       continue on the SAME device, keep going (don't abandon a hot pan).
-  //    3. Balance -> otherwise advance the recipe that is furthest behind, so
-  //       both finish close together instead of A-then-B.
+  //    2. Device stickiness -> keep going on the same hot pan when possible
+  //    3. Balance -> advance the recipe that is furthest behind
   //
+  function stepDuration(step) {
+    const t = step && step.timeMinutes;
+    if (t != null && Number.isFinite(Number(t))) return Math.max(0, Number(t));
+    return 0;
+  }
   function activeMin(step) {
-    return (step.activeMinutes != null) ? step.activeMinutes : step.timeMinutes;
+    if (step && step.activeMinutes != null && Number.isFinite(Number(step.activeMinutes))) {
+      return Math.max(0, Number(step.activeMinutes));
+    }
+    return stepDuration(step);
   }
   function passiveMin(step) {
-    return Math.max(0, step.timeMinutes - activeMin(step));
+    return Math.max(0, stepDuration(step) - activeMin(step));
   }
 
   function buildSequence(rcps) {
     const lanes = rcps.map((r, i) => ({
       i,
-      steps: [...(r.steps || [])].sort((a, b) => a.order - b.order),
+      steps: [...(r.steps || [])].sort((a, b) => {
+        const oa = Number(a.order) || 0;
+        const ob = Number(b.order) || 0;
+        if (oa !== ob) return oa - ob;
+        return String(a.id || "").localeCompare(String(b.id || ""));
+      }),
       ptr: 0,
       readyAt: 0,
-      done: 0
+      done: 0,
+      endsAt: 0,
+      deviceBusyUntil: Object.create(null)
     }));
 
     let T = 0;
@@ -530,12 +691,21 @@ const Kochmodus = (function () {
     const seq = [];
     const remaining = () => lanes.filter(l => l.ptr < l.steps.length);
 
-    while (remaining().length > 0) {
-      let ready = lanes.filter(l => l.ptr < l.steps.length && l.readyAt <= T + 1e-9);
+    function laneAvailableAt(lane) {
+      const step = lane.steps[lane.ptr];
+      const device = step.device || "_";
+      return Math.max(lane.readyAt, lane.deviceBusyUntil[device] || 0);
+    }
+
+    // Safety: pathological data should not hang the UI.
+    let guard = 0;
+    const maxIter = Math.max(64, lanes.reduce((n, l) => n + l.steps.length, 0) * 8 + 32);
+
+    while (remaining().length > 0 && guard++ < maxIter) {
+      let ready = remaining().filter(l => laneAvailableAt(l) <= T + 1e-9);
 
       if (ready.length === 0) {
-        // Nobody is free yet — fast-forward to the next moment something frees up.
-        T = Math.min(...remaining().map(l => l.readyAt));
+        T = Math.min(...remaining().map(laneAvailableAt));
         continue;
       }
 
@@ -544,36 +714,38 @@ const Kochmodus = (function () {
         const pb = passiveMin(b.steps[b.ptr]);
         if (pb !== pa) return pb - pa;                       // 1. passive-heavy first
 
-        // 2. device stickiness: keep the previous recipe if it stays on its device
         if (prev) {
           const aStick = (a.i === prev.laneIndex && a.steps[a.ptr].device === prev.device);
           const bStick = (b.i === prev.laneIndex && b.steps[b.ptr].device === prev.device);
           if (aStick !== bStick) return aStick ? -1 : 1;
         }
         if (a.done !== b.done) return a.done - b.done;        // 3. furthest behind
-        return a.i - b.i;                                     // stable fallback
+        return a.i - b.i;
       });
 
       const lane = ready[0];
       const step = lane.steps[lane.ptr];
+      const device = step.device || "_";
+      const startT = T;
+      const dur = stepDuration(step);
+      const act = activeMin(step);
+
       seq.push({ type: "cook", recipeIndex: lane.i, step, recipe: rcps[lane.i] });
 
-      lane.readyAt = T + activeMin(step); // free again after the active part
-      T += activeMin(step);
+      lane.readyAt = startT + act;
+      lane.deviceBusyUntil[device] = startT + Math.max(dur, act);
+      lane.endsAt = Math.max(lane.endsAt, startT + Math.max(dur, act));
+      T = startT + act;
       lane.ptr++;
       lane.done++;
       prev = { laneIndex: lane.i, device: step.device };
     }
 
-    return { seq, totalMinutes: Math.round(Math.max(T, ...lanes.map(l => l.readyAt))) };
+    const wall = Math.max(T, ...lanes.map(l => l.endsAt || 0), 0);
+    return { seq, totalMinutes: Math.round(wall) };
   }
 
   // ---- Mis en Place (prep) phase --------------------------------------
-  // The prep steps carry only a `category`, no timing. We batch them across
-  // BOTH recipes by category (cut everything at once, weigh everything at once)
-  // — the prep counterpart to the interleaved cooking order. The category order
-  // below is chosen so the chicken is cubed (schneiden) and the spices measured
-  // (abmessen) BEFORE the marinade page, so its 30-min timer can start early.
   const PREP_CATEGORIES = {
     schneiden:  { label: "Schneiden",   order: 1 },
     abmessen:   { label: "Abmessen",    order: 2 },
@@ -602,11 +774,9 @@ const Kochmodus = (function () {
     }));
   }
 
-  // Detect devices that both recipes use passively at the same time -> the cook
-  // needs two of them. For our data this yields "2 Töpfe".
   function detectDeviceNeeds(rcps) {
     const passiveDevices = rcps.map(r =>
-      new Set((r.steps || []).filter(s => passiveMin(s) > 0).map(s => s.device))
+      new Set((r.steps || []).filter(s => passiveMin(s) > 0).map(s => s.device).filter(Boolean))
     );
     const needs = [];
     if (passiveDevices.length >= 2) {
@@ -616,40 +786,122 @@ const Kochmodus = (function () {
   }
 
   // =====================================================================
+  //  PORTION SCALING
+  // =====================================================================
+  function scaleNumber(n, from, to) {
+    const v = n * (to / from);
+    // Keep integers when the source was integer-like; else 1 decimal.
+    if (Math.abs(v - Math.round(v)) < 1e-6) return String(Math.round(v));
+    return String(Math.round(v * 10) / 10).replace(".", ",");
+  }
+
+  function scaleText(text, from, to) {
+    if (!text || !from || from === to) return text;
+    const unitRe = new RegExp("(\\d+(?:[.,]\\d+)?)\\s*(" + SCALE_UNITS + ")\\b", "gi");
+    let out = String(text).replace(unitRe, (_, num, unit) => {
+      const n = parseFloat(String(num).replace(",", "."));
+      if (!Number.isFinite(n)) return _;
+      return scaleNumber(n, from, to) + " " + unit;
+    });
+    out = out.replace(/für\s+(\d+)\s+Portionen/gi, (_, n) => {
+      return "für " + scaleNumber(parseFloat(n), from, to) + " Portionen";
+    });
+    return out;
+  }
+
+  function displayText(obj) {
+    return scaleText(obj && obj.text, baseServings, targetServings);
+  }
+
+  // =====================================================================
   //  DATA LOADING
   // =====================================================================
   async function loadRecipes() {
-    // Prefer freshly served recipes.json; fall back to whatever the overview saved.
     try {
       const res = await fetch("recipes.json", { cache: "no-store" });
       if (res.ok) return await res.json();
     } catch (e) { /* offline / file:// — fall through to localStorage */ }
-    const saved = localStorage.getItem(STORAGE_RECIPES);
-    if (saved) return JSON.parse(saved);
+    try {
+      const saved = localStorage.getItem(STORAGE_RECIPES);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      try { localStorage.removeItem(STORAGE_RECIPES); } catch (_) { /* ignore */ }
+    }
     return null;
   }
 
   function menuSignature(data) {
-    const ids = (data.recipes || []).slice(0, 2).map(r => r.id).join("+");
+    const ids = (data.recipes || []).slice(0, 2).map(r => r.id || r.name || "?").join("+");
     return `${data.week || "?"}|${ids}`;
+  }
+
+  function readStoredServings(fallback) {
+    try {
+      const raw = localStorage.getItem(STORAGE_SERVINGS);
+      const n = raw != null ? Number(raw) : NaN;
+      if (Number.isFinite(n) && n >= 1 && n <= 24) return Math.round(n);
+    } catch (e) { /* ignore */ }
+    return fallback;
   }
 
   // =====================================================================
   //  PERSISTED STATE
   // =====================================================================
   function freshState() {
-    return { sig, pageIndex: 0, checked: {}, timers: {}, visited: { 0: true } };
+    return {
+      sig,
+      pageIndex: 0,
+      checked: {},
+      timers: {},
+      visited: { 0: true },
+      targetServings,
+      startedAt: Date.now()
+    };
   }
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_STATE);
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return (s.sig === sig) ? s : null; // ignore state from a different menu
-    } catch (e) { return null; }
+      return (s && s.sig === sig) ? s : null;
+    } catch (e) {
+      try { localStorage.removeItem(STORAGE_STATE); } catch (_) { /* ignore */ }
+      return null;
+    }
   }
   function saveState() {
-    if (state) localStorage.setItem(STORAGE_STATE, JSON.stringify(state));
+    if (!state) return;
+    try {
+      localStorage.setItem(STORAGE_STATE, JSON.stringify(state));
+      localStorage.setItem(STORAGE_SERVINGS, String(targetServings));
+    } catch (e) { /* quota / private mode */ }
+  }
+
+  function clampPageIndex(idx) {
+    if (!Number.isFinite(idx)) return 0;
+    return Math.max(0, Math.min(pages.length - 1, Math.floor(idx)));
+  }
+
+  function normalizeState(s) {
+    if (!s || typeof s !== "object") return freshState();
+    s.checked = s.checked && typeof s.checked === "object" ? s.checked : {};
+    s.timers = s.timers && typeof s.timers === "object" ? s.timers : {};
+    s.visited = s.visited && typeof s.visited === "object" ? s.visited : {};
+    s.pageIndex = clampPageIndex(Number(s.pageIndex));
+    s.visited[s.pageIndex] = true;
+    if (s.targetServings != null && Number.isFinite(Number(s.targetServings))) {
+      targetServings = Math.max(1, Math.min(24, Math.round(Number(s.targetServings))));
+      s.targetServings = targetServings;
+    }
+    return s;
+  }
+
+  function hasResumableProgress(s) {
+    if (!s) return false;
+    if (Number(s.pageIndex) > 0) return true;
+    if (s.checked && Object.keys(s.checked).length > 0) return true;
+    if (s.timers && Object.keys(s.timers).length > 0) return true;
+    return false;
   }
 
   // =====================================================================
@@ -663,20 +915,33 @@ const Kochmodus = (function () {
   }
   function beep() {
     if (!audioCtx) return;
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = "sine"; o.frequency.value = 880;
-    o.connect(g); g.connect(audioCtx.destination);
-    const t = audioCtx.currentTime;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
-    o.start(t); o.stop(t + 0.47);
+    try {
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = 880;
+      o.connect(g); g.connect(audioCtx.destination);
+      const t = audioCtx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+      o.start(t); o.stop(t + 0.47);
+    } catch (e) { /* ignore */ }
   }
+
+  // iOS Safari has no navigator.vibrate — use a brief visual flash instead.
+  function flashAlarm() {
+    const el = $("alarmFlash");
+    if (!el) return;
+    el.classList.add("on");
+    setTimeout(() => el.classList.remove("on"), 180);
+  }
+
   function startAlarm() {
     if (alarmInterval) return;
     beep();
-    alarmInterval = setInterval(beep, 900);
+    flashAlarm();
+    alarmInterval = setInterval(() => { beep(); flashAlarm(); }, 900);
   }
   function stopAlarmIfClear() {
     if (Object.keys(ringing).length === 0 && alarmInterval) {
@@ -697,25 +962,88 @@ const Kochmodus = (function () {
         setWakeIndicator(false);
       }
     } catch (e) {
-      setWakeIndicator(false); // e.g. Low Power Mode or unsupported
+      setWakeIndicator(false);
     }
   }
   function setWakeIndicator(on) {
     const el = $("wakeInd");
     if (!el) return;
     el.classList.toggle("on", on);
-    el.lastChild.textContent = on ? "Display wach" : "Display schläft evtl.";
+    const label = el.querySelector(".wake-label");
+    if (label) label.textContent = on ? "Display wach" : "Display schläft evtl.";
+  }
+
+  // =====================================================================
+  //  SPEECH (optional Web Speech API)
+  // =====================================================================
+  function stopSpeaking() {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+    speaking = false;
+    const btn = $("speakBtn");
+    if (btn) {
+      btn.classList.remove("active");
+      btn.setAttribute("aria-pressed", "false");
+    }
+  }
+  function speakCurrent() {
+    if (!window.speechSynthesis) return;
+    const p = pages[state.pageIndex];
+    let text = "";
+    if (p.type === "prep") {
+      text = p.label + ". " + p.items.map(({ item }) => displayText(item)).join(". ");
+    } else {
+      text = displayText(p.step);
+    }
+    stopSpeaking();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "de-DE";
+    u.rate = 1.0;
+    u.onend = () => { speaking = false; $("speakBtn").classList.remove("active"); $("speakBtn").setAttribute("aria-pressed", "false"); };
+    u.onerror = () => { speaking = false; $("speakBtn").classList.remove("active"); $("speakBtn").setAttribute("aria-pressed", "false"); };
+    speaking = true;
+    $("speakBtn").classList.add("active");
+    $("speakBtn").setAttribute("aria-pressed", "true");
+    window.speechSynthesis.speak(u);
   }
 
   // =====================================================================
   //  TIMERS  (absolute end timestamps so they survive reload & navigation)
   // =====================================================================
-  // Timers are addressed by id (a cook step id OR a prep item id), so both the
-  // cooking timers and the marinade timer share the same machinery.
+  function defaultMinutesFor(id) {
+    if (draftMinutes[id] != null) return draftMinutes[id];
+    const src = timerIndex[id];
+    if (!src) return 1;
+    // Prefer cook step duration / prep timerMinutes from the page content.
+    const page = pages[src.pageIndex];
+    if (!page) return 1;
+    if (page.type === "prep") {
+      const found = page.items.find(({ item }) => item.id === id);
+      return Math.max(1, Number(found && found.item.timerMinutes) || 1);
+    }
+    return Math.max(1, stepDuration(page.step) || 1);
+  }
+
   function startTimer(id, minutes) {
-    const durSec = minutes * 60;
+    const mins = Math.max(1, Math.round(Number(minutes) || defaultMinutesFor(id)));
+    draftMinutes[id] = mins;
+    const durSec = mins * 60;
     state.timers[id] = { endsAt: Date.now() + durSec * 1000, duration: durSec };
     delete ringing[id];
+    saveState();
+    renderPage();
+  }
+  function adjustDraft(id, delta) {
+    const next = Math.max(1, Math.min(180, defaultMinutesFor(id) + delta));
+    draftMinutes[id] = next;
+    renderPage();
+  }
+  function nudgeRunningTimer(id, deltaSec) {
+    const t = state.timers[id];
+    if (!t) return;
+    t.endsAt = Math.max(Date.now() + 1000, t.endsAt + deltaSec * 1000);
+    t.duration = Math.max(1, (t.duration || 0) + deltaSec);
+    if (t.endsAt > Date.now()) delete ringing[id];
+    stopAlarmIfClear();
     saveState();
     renderPage();
   }
@@ -736,8 +1064,8 @@ const Kochmodus = (function () {
     return `${m}:${String(s).padStart(2, "0")}`;
   }
 
-  // Central tick: refresh displays, fire alarms when a timer hits zero.
   function tick() {
+    if (!state) return;
     let anyRing = false;
     for (const id in state.timers) {
       const rem = timerRemaining(id);
@@ -745,8 +1073,10 @@ const Kochmodus = (function () {
       if (ringing[id]) anyRing = true;
     }
     if (anyRing) startAlarm();
+    else stopAlarmIfClear();
     updateTimerTexts();
     renderBgTimers();
+    updateLiveEta();
   }
 
   // =====================================================================
@@ -765,46 +1095,99 @@ const Kochmodus = (function () {
     const wrap = $("progress");
     wrap.innerHTML = "";
     pages.forEach((p, idx) => {
-      const dot = document.createElement("div");
-      const cls = p.type === "prep" ? "prep" : ACCENT[p.recipeIndex];
+      const dot = document.createElement("button");
+      const cls = p.type === "prep" ? "prep" : ACCENT[p.recipeIndex % ACCENT.length];
+      dot.type = "button";
       dot.className = `dot ${cls}`;
       dot.dataset.idx = idx;
+      dot.setAttribute("aria-label", `Zu Schritt ${idx + 1}`);
       dot.addEventListener("click", () => goTo(idx));
       wrap.appendChild(dot);
     });
   }
-  // A page is "done" when its checkable content is fully ticked.
+
   function isPageDone(idx) {
     const p = pages[idx];
+    if (!p) return false;
     if (p.type === "prep") return p.items.every(({ item }) => state.checked[item.id]);
     return !!state.checked[p.step.id];
   }
+
+  function progressPercent() {
+    let total = 0, done = 0;
+    pages.forEach(p => {
+      if (p.type === "prep") {
+        p.items.forEach(({ item }) => {
+          total++;
+          if (state.checked[item.id]) done++;
+        });
+      } else {
+        total++;
+        if (state.checked[p.step.id]) done++;
+      }
+    });
+    if (!total) return 0;
+    return Math.round((done / total) * 100);
+  }
+
   function updateProgress() {
     [...$("progress").children].forEach((dot, idx) => {
       dot.classList.toggle("visited", !!state.visited[idx]);
       dot.classList.toggle("done", isPageDone(idx));
       dot.classList.toggle("current", idx === state.pageIndex);
+      dot.setAttribute("aria-current", idx === state.pageIndex ? "step" : "false");
     });
   }
-  // Checkable ids belonging to the current page (to hide their own timers
-  // from the "Nebenbei" background bar).
+
+  function estimateRemainingMinutes() {
+    let activeLeft = 0;
+    for (let i = state.pageIndex; i < pages.length; i++) {
+      const p = pages[i];
+      if (p.type !== "cook") continue;
+      if (state.checked[p.step.id]) continue;
+      if (i === state.pageIndex && state.timers[p.step.id]) {
+        // Prefer remaining wall time of the running timer for the current step.
+        activeLeft += timerRemaining(p.step.id) / 60;
+      } else {
+        activeLeft += activeMin(p.step);
+      }
+    }
+    let maxTimerMin = 0;
+    for (const id in state.timers) {
+      maxTimerMin = Math.max(maxTimerMin, timerRemaining(id) / 60);
+    }
+    return Math.max(0, Math.ceil(Math.max(activeLeft, maxTimerMin)));
+  }
+
+  function updateLiveEta() {
+    const el = $("liveEta");
+    if (!el || !state) return;
+    const pct = progressPercent();
+    const rem = estimateRemainingMinutes();
+    el.textContent = `${pct}% · ≈ ${rem} Min übrig`;
+  }
+
   function pageOwnIds(page) {
     return page.type === "prep" ? page.items.map(({ item }) => item.id) : [page.step.id];
   }
 
-  // Shared page chrome, then delegate to the prep or cook renderer.
   function renderPage() {
     const p = pages[state.pageIndex];
+    if (!p) return;
+
     $("stepCount").textContent =
       (p.type === "prep" ? "Vorbereitung " : "Schritt ") + (state.pageIndex + 1) + " / " + pages.length;
+
+    // Speak button is available on both prep and cook pages.
+    $("speakBtn").style.display = "inline-flex";
 
     if (p.type === "prep") renderPrepPage(p);
     else renderCookPage(p);
 
     renderBgTimers();
     updateProgress();
+    updateLiveEta();
 
-    // Next button becomes a finish button on the last page
     const isLast = state.pageIndex === pages.length - 1;
     const nextBtn = $("nextBtn");
     nextBtn.classList.toggle("finish", isLast);
@@ -816,26 +1199,27 @@ const Kochmodus = (function () {
 
   function renderCookPage(p) {
     const step = p.step;
-    const suffix = ACCENT[p.recipeIndex];
+    const suffix = ACCENT[p.recipeIndex % ACCENT.length];
 
     $("card").className = `card ${suffix}`;
     $("cardActions").style.display = "flex";
+    $("checkBtn").style.display = "inline-flex";
     $("prepList").style.display = "none";
+    $("prepToolbar").style.display = "none";
     $("chips").style.display = "flex";
     $("timerBlock").style.display = "flex";
 
     $("recipeTag").textContent = "Rezept " + String.fromCharCode(65 + p.recipeIndex);
     $("recipeName").textContent = p.recipe.name;
-    $("stepText").textContent = step.text;
+    $("stepText").textContent = displayText(step);
 
-    // chips: device, total time, temperature (if present)
     const chips = [];
     if (step.device) chips.push(`<span class="chip">${icon(step.device)}${esc(step.device)}</span>`);
     if (step.timeMinutes != null) {
       const pm = passiveMin(step);
       const label = pm > 0
-        ? `${step.timeMinutes} Min (${activeMin(step)} aktiv)`
-        : `${step.timeMinutes} Min`;
+        ? `${stepDuration(step)} Min (${activeMin(step)} aktiv)`
+        : `${stepDuration(step)} Min`;
       chips.push(`<span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>${label}</span>`);
     }
     if (step.temperatureC != null) {
@@ -844,10 +1228,11 @@ const Kochmodus = (function () {
     $("chips").innerHTML = chips.join("");
 
     $("tipBtn").classList.toggle("show", !!step.tip);
-    $("checkBtn").classList.toggle("checked", !!state.checked[step.id]);
+    const checked = !!state.checked[step.id];
+    $("checkBtn").classList.toggle("checked", checked);
+    $("checkBtn").setAttribute("aria-pressed", checked ? "true" : "false");
 
-    // skipped hint: still unchecked while a later page has already been visited
-    const skipped = !state.checked[step.id] && hasProgressedBeyond(state.pageIndex);
+    const skipped = !checked && hasProgressedBeyond(state.pageIndex);
     $("skippedNote").classList.toggle("show", skipped);
 
     renderTimerBlock(step);
@@ -855,45 +1240,82 @@ const Kochmodus = (function () {
 
   function renderPrepPage(p) {
     $("card").className = "card prep";
-    $("cardActions").style.display = "none";
+    $("cardActions").style.display = "flex";
+    $("tipBtn").classList.remove("show");
+    $("checkBtn").style.display = "none";
     $("chips").style.display = "none";
     $("timerBlock").style.display = "none";
     $("skippedNote").classList.remove("show");
     $("prepList").style.display = "flex";
+    $("prepToolbar").style.display = "flex";
 
     $("recipeTag").textContent = "Vorbereitung";
     $("recipeName").textContent = `${p.items.length} ${p.items.length === 1 ? "Sache" : "Sachen"}`;
     $("stepText").textContent = p.label;
 
+    const allChecked = p.items.every(({ item }) => state.checked[item.id]);
+    $("prepCheckAll").textContent = allChecked ? "Alle abwählen" : "Alle abhaken";
+
     const list = $("prepList");
     list.innerHTML = p.items.map(({ recipeIndex, item }) => {
-      const suffix = ACCENT[recipeIndex];
+      const suffix = ACCENT[recipeIndex % ACCENT.length];
       const checked = !!state.checked[item.id];
       const hasTimer = item.timerMinutes != null;
       const running = state.timers[item.id];
       let timerHtml = "";
       if (hasTimer) {
+        const draft = defaultMinutesFor(item.id);
         timerHtml = running
-          ? `<span class="prep-timer ${ringing[item.id] ? "ring" : ""}" data-tid="${item.id}">${ringing[item.id] ? "fertig!" : fmt(timerRemaining(item.id))}</span>
-             <button class="prep-tbtn reset" data-reset="${item.id}" aria-label="Timer zurücksetzen">↺</button>`
-          : `<button class="prep-tbtn start ${suffix}" data-start="${item.id}" data-min="${item.timerMinutes}">Timer ${item.timerMinutes}′</button>`;
+          ? `<div class="prep-actions">
+               <span class="prep-timer ${ringing[item.id] ? "ring" : ""}" data-tid="${item.id}">${ringing[item.id] ? "fertig!" : fmt(timerRemaining(item.id))}</span>
+               <button class="prep-tbtn reset" data-reset="${item.id}" aria-label="Timer zurücksetzen" type="button">↺</button>
+             </div>`
+          : `<div class="prep-actions">
+               <div class="timer-adj" data-adj="${item.id}">
+                 <button type="button" data-delta="-1" aria-label="Eine Minute weniger">−</button>
+                 <span class="mins">${draft}′</span>
+                 <button type="button" data-delta="1" aria-label="Eine Minute mehr">+</button>
+               </div>
+               <button class="prep-tbtn start ${suffix}" data-start="${item.id}" data-min="${draft}" type="button">Timer</button>
+             </div>`;
       }
-      return `<div class="prep-row ${suffix} ${checked ? "checked" : ""}" data-check="${item.id}">
+      return `<div class="prep-row ${suffix} ${checked ? "checked" : ""}" data-check="${item.id}" role="checkbox" aria-checked="${checked}" tabindex="0">
         <span class="prep-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-        <span class="prep-text">${esc(item.text)}</span>
+        <span class="prep-text">${esc(displayText(item))}</span>
         ${timerHtml}
       </div>`;
     }).join("");
 
-    // A tap on the row toggles the check; timer buttons stop propagation.
     list.querySelectorAll("[data-check]").forEach(el => {
-      el.addEventListener("click", () => toggleCheck(el.dataset.check));
+      el.addEventListener("click", (e) => {
+        if (e.target.closest("button") || e.target.closest(".timer-adj")) return;
+        toggleCheck(el.dataset.check);
+      });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCheck(el.dataset.check); }
+      });
     });
     list.querySelectorAll("[data-start]").forEach(b => {
-      b.addEventListener("click", e => { e.stopPropagation(); unlockAudio(); startTimer(b.dataset.start, Number(b.dataset.min)); });
+      b.addEventListener("click", e => {
+        e.stopPropagation();
+        unlockAudio();
+        startTimer(b.dataset.start, Number(b.dataset.min));
+      });
     });
     list.querySelectorAll("[data-reset]").forEach(b => {
-      b.addEventListener("click", e => { e.stopPropagation(); delete ringing[b.dataset.reset]; resetTimer(b.dataset.reset); });
+      b.addEventListener("click", e => {
+        e.stopPropagation();
+        delete ringing[b.dataset.reset];
+        resetTimer(b.dataset.reset);
+      });
+    });
+    list.querySelectorAll(".timer-adj").forEach(adj => {
+      adj.querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          adjustDraft(adj.dataset.adj, Number(btn.dataset.delta));
+        });
+      });
     });
   }
 
@@ -904,45 +1326,84 @@ const Kochmodus = (function () {
     renderPage();
   }
 
-  // Has any later page been visited? (used to decide "skipped" styling)
+  function toggleCheckAllPrep() {
+    const p = pages[state.pageIndex];
+    if (!p || p.type !== "prep") return;
+    const allChecked = p.items.every(({ item }) => state.checked[item.id]);
+    p.items.forEach(({ item }) => {
+      if (allChecked) delete state.checked[item.id];
+      else state.checked[item.id] = true;
+    });
+    saveState();
+    renderPage();
+  }
+
   function hasProgressedBeyond(idx) {
     return Object.keys(state.visited).some(k => Number(k) > idx);
   }
 
   function renderTimerBlock(step) {
     const block = $("timerBlock");
-    const rem = timerRemaining(step.id);
-    const running = state.timers[step.id];
+    const id = step.id;
+    const rem = timerRemaining(id);
+    const running = state.timers[id];
+    const draft = defaultMinutesFor(id);
+
+    if (!stepDuration(step) && draftMinutes[id] == null) {
+      // No duration in data — still allow a manual timer starting at 1 min.
+      draftMinutes[id] = draftMinutes[id] || 1;
+    }
 
     if (!running) {
+      const mins = defaultMinutesFor(id);
       block.innerHTML =
-        `<button class="timer-btn start" id="timerStart">
+        `<div class="timer-adj" id="timerAdj">
+           <button type="button" data-delta="-1" aria-label="Eine Minute weniger">−</button>
+           <span class="mins">${mins}:00</span>
+           <button type="button" data-delta="1" aria-label="Eine Minute mehr">+</button>
+         </div>
+         <button class="timer-btn start" id="timerStart" type="button">
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
-           Timer ${step.timeMinutes}:00 starten
+           Timer starten
          </button>`;
-      $("timerStart").addEventListener("click", () => { unlockAudio(); startTimer(step.id, step.timeMinutes); });
+      $("timerAdj").querySelectorAll("button").forEach(btn => {
+        btn.addEventListener("click", () => adjustDraft(id, Number(btn.dataset.delta)));
+      });
+      $("timerStart").addEventListener("click", () => {
+        unlockAudio();
+        startTimer(id, defaultMinutesFor(id));
+      });
       return;
     }
 
-    const ring = ringing[step.id];
+    const ring = ringing[id];
     block.innerHTML =
-      `<div class="timer-display ${ring ? "ring" : ""}" id="timerDisp">${ring ? "0:00" : fmt(rem)}</div>
-       <button class="timer-btn reset" id="timerReset">
+      `<div class="timer-display ${ring ? "ring" : ""}" id="timerDisp">${ring ? "fertig!" : fmt(rem)}</div>
+       <div class="timer-adj" id="timerAdj">
+         <button type="button" data-delta="-60" aria-label="Eine Minute abziehen">−</button>
+         <span class="mins">±1′</span>
+         <button type="button" data-delta="60" aria-label="Eine Minute addieren">+</button>
+       </div>
+       <button class="timer-btn reset" id="timerReset" type="button">
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
          ${ring ? "Stopp" : "Zurücksetzen"}
        </button>`;
+    $("timerAdj").querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => nudgeRunningTimer(id, Number(btn.dataset.delta)));
+    });
     $("timerReset").addEventListener("click", () => {
-      if (ringing[step.id]) delete ringing[step.id];
-      resetTimer(step.id);
+      if (ringing[id]) delete ringing[id];
+      resetTimer(id);
     });
   }
 
   function updateTimerTexts() {
     const p = pages[state.pageIndex];
+    if (!p) return;
     if (p.type === "cook") {
       const disp = $("timerDisp");
       if (disp && state.timers[p.step.id]) {
-        disp.textContent = fmt(timerRemaining(p.step.id));
+        disp.textContent = ringing[p.step.id] ? "fertig!" : fmt(timerRemaining(p.step.id));
         disp.classList.toggle("ring", !!ringing[p.step.id]);
       }
     } else {
@@ -956,7 +1417,6 @@ const Kochmodus = (function () {
     }
   }
 
-  // "Nebenbei" bar: every running/finished timer that is NOT on the current page.
   function renderBgTimers() {
     const wrap = $("bgTimers");
     const own = new Set(pageOwnIds(pages[state.pageIndex]));
@@ -967,11 +1427,11 @@ const Kochmodus = (function () {
       if (!src) continue;
       const rem = timerRemaining(id);
       const ring = ringing[id];
-      const suffix = ACCENT[src.recipeIndex];
+      const suffix = ACCENT[src.recipeIndex % ACCENT.length];
       chips.push(
-        `<span class="bg-chip ${suffix} ${ring ? "ring" : ""}" data-id="${id}">
+        `<button type="button" class="bg-chip ${suffix} ${ring ? "ring" : ""}" data-id="${id}">
            <span class="led"></span>${esc(src.label)} · ${ring ? "fertig!" : fmt(rem)}
-         </span>`);
+         </button>`);
     }
     wrap.innerHTML = chips.join("");
     [...wrap.children].forEach(chip => {
@@ -982,25 +1442,28 @@ const Kochmodus = (function () {
     });
   }
 
-  // Register every timer-capable id (all cook steps + prep items with a timer).
   function buildTimerIndex() {
     timerIndex = {};
     pages.forEach((p, idx) => {
       if (p.type === "prep") {
         p.items.forEach(({ recipeIndex, item }) => {
-          if (item.timerMinutes != null) timerIndex[item.id] = { recipeIndex, label: shortName(item), pageIndex: idx };
+          if (item.timerMinutes != null) {
+            timerIndex[item.id] = { recipeIndex, label: shortName(item), pageIndex: idx };
+          }
         });
       } else {
-        timerIndex[p.step.id] = { recipeIndex: p.recipeIndex, label: shortName(p.step), pageIndex: idx };
+        timerIndex[p.step.id] = {
+          recipeIndex: p.recipeIndex,
+          label: shortName(p.step),
+          pageIndex: idx
+        };
       }
     });
   }
 
-  // A short label for the "Nebenbei" chip. Prefer an explicit shortLabel from
-  // the data; otherwise fall back to the first two words of the text.
   function shortName(obj) {
     if (obj.shortLabel) return obj.shortLabel;
-    return obj.text.split(/[\s,]+/).slice(0, 2).join(" ");
+    return String(obj.text || "").split(/[\s,]+/).slice(0, 2).join(" ");
   }
 
   // =====================================================================
@@ -1008,6 +1471,7 @@ const Kochmodus = (function () {
   // =====================================================================
   function goTo(idx) {
     if (idx < 0 || idx >= pages.length) return;
+    stopSpeaking();
     state.pageIndex = idx;
     state.visited[idx] = true;
     saveState();
@@ -1028,7 +1492,6 @@ const Kochmodus = (function () {
   }
 
   function attemptHome() {
-    // Confirm only when there is something to lose: a running timer or unfinished cook.
     if (anyTimerRunning() || !allDone()) {
       const msg = anyTimerRunning()
         ? "Es läuft noch ein Timer und nicht alle Schritte sind abgehakt. Dein Fortschritt bleibt gespeichert."
@@ -1047,7 +1510,11 @@ const Kochmodus = (function () {
   // =====================================================================
   //  OVERLAYS
   // =====================================================================
-  function showOverlay(id) { $(id).classList.add("active"); }
+  function showOverlay(id) {
+    $(id).classList.add("active");
+    const focusable = $(id).querySelector("button");
+    if (focusable) focusable.focus();
+  }
   function hideOverlay(id) { $(id).classList.remove("active"); }
 
   // =====================================================================
@@ -1064,7 +1531,6 @@ const Kochmodus = (function () {
     touchActive = false;
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
-    // Generous threshold; ignore mostly-vertical swipes (scrolling).
     if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.4) {
       if (dx < 0) next(); else prev();
     }
@@ -1075,11 +1541,12 @@ const Kochmodus = (function () {
   // =====================================================================
   function renderStartScreen(data, totalMinutes, deviceNeeds) {
     $("weekLabel").textContent = data.week ? `Woche ${data.week}` : "";
+    $("servingsVal").textContent = String(targetServings);
     const prepCount = pages.filter(p => p.type === "prep").length;
     $("etaRow").innerHTML =
-      `<span class="eta-chip">⏱ ≈ ${totalMinutes} Min Kochen</span>
-       <span class="eta-chip">▦ ${prepCount} Prep · ${pages.length - prepCount} Kochschritte</span>
-       <span class="eta-chip">🍱 ${recipes.map(r => r.name).join("  +  ")}</span>`;
+      `<span class="eta-chip">≈ ${totalMinutes} Min Kochen</span>
+       <span class="eta-chip">${prepCount} Prep · ${pages.length - prepCount} Kochschritte</span>
+       <span class="eta-chip">${recipes.map(r => r.name).join("  +  ")}</span>`;
 
     if (deviceNeeds.length) {
       const list = deviceNeeds.map(d => `2× ${d}`).join(", ");
@@ -1088,11 +1555,13 @@ const Kochmodus = (function () {
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
            Du brauchst ${list} gleichzeitig — beide Getreide köcheln parallel.
          </div>`;
+    } else {
+      $("deviceWarn").innerHTML = "";
     }
 
     const rows = pages.map((p, idx) => {
       if (p.type === "prep") {
-        const items = p.items.map(({ item }) => esc(item.text)).join(" · ");
+        const items = p.items.map(({ item }) => esc(displayText(item))).join(" · ");
         return `<div class="plan-row prep">
           <span class="plan-idx">${idx + 1}</span>
           <span class="plan-tag">PREP</span>
@@ -1100,17 +1569,27 @@ const Kochmodus = (function () {
           <span class="plan-time"></span>
         </div>`;
       }
-      const suffix = ACCENT[p.recipeIndex];
+      const suffix = ACCENT[p.recipeIndex % ACCENT.length];
       const pm = passiveMin(p.step);
-      const t = pm > 0 ? `${p.step.timeMinutes}′ (${activeMin(p.step)}′ aktiv)` : `${p.step.timeMinutes}′`;
+      const t = pm > 0 ? `${stepDuration(p.step)}′ (${activeMin(p.step)}′ aktiv)` : `${stepDuration(p.step)}′`;
       return `<div class="plan-row ${suffix}">
         <span class="plan-idx">${idx + 1}</span>
         <span class="plan-tag">${String.fromCharCode(65 + p.recipeIndex)}</span>
-        <span class="plan-text">${esc(p.step.text)}</span>
+        <span class="plan-text">${esc(displayText(p.step))}</span>
         <span class="plan-time">${t}</span>
       </div>`;
     }).join("");
     $("planList").innerHTML = rows;
+  }
+
+  function changeServings(delta) {
+    targetServings = Math.max(1, Math.min(24, targetServings + delta));
+    try { localStorage.setItem(STORAGE_SERVINGS, String(targetServings)); } catch (e) { /* ignore */ }
+    // Re-render start plan with scaled quantities (scheduler unchanged).
+    const data = { week: $("weekLabel").textContent.replace(/^Woche\s+/, "") || undefined, recipes };
+    // Prefer original week from signature
+    const week = (sig.split("|")[0] !== "?" ? sig.split("|")[0] : "");
+    renderStartScreen({ week, recipes }, plannedCookMinutes, detectDeviceNeeds(recipes));
   }
 
   // =====================================================================
@@ -1118,19 +1597,19 @@ const Kochmodus = (function () {
   // =====================================================================
   function enterCookView() {
     cookingStarted = true;
-    unlockAudio();      // user gesture -> unlock sound for later alarms
-    requestWake();      // keep the iPad awake
+    unlockAudio();
+    requestWake();
 
     $("startScreen").classList.remove("active");
     $("cookScreen").classList.add("active");
 
     buildProgress();
-    // Re-arm alarms for timers that expired while we were away.
     for (const id in state.timers) {
       if (timerRemaining(id) === 0) ringing[id] = true;
     }
     renderPage();
-    setInterval(tick, 250);
+
+    if (!tickTimer) tickTimer = setInterval(tick, 250);
   }
 
   // =====================================================================
@@ -1146,63 +1625,90 @@ const Kochmodus = (function () {
     }
 
     recipes = data.recipes.slice(0, 2);
+    baseServings = Number(recipes[0].servings) || 5;
+    targetServings = readStoredServings(baseServings);
     sig = menuSignature(data);
+
     const built = buildSequence(recipes);
-    // Prep (mis en place) pages come first, then the interleaved cooking pages.
+    plannedCookMinutes = built.totalMinutes;
     pages = [...buildPrepPages(recipes), ...built.seq];
     buildTimerIndex();
     const deviceNeeds = detectDeviceNeeds(recipes);
 
     renderStartScreen(data, built.totalMinutes, deviceNeeds);
 
-    // Resume support: if a matching, already-started state exists, offer to continue.
-    const saved = loadState();
-    const alreadyStarted = saved && (saved.pageIndex > 0 || Object.keys(saved.checked || {}).length > 0);
+    const savedRaw = loadState();
+    const saved = savedRaw ? normalizeState(savedRaw) : null;
+    const alreadyStarted = hasResumableProgress(saved);
+
+    $("servingsMinus").addEventListener("click", () => changeServings(-1));
+    $("servingsPlus").addEventListener("click", () => changeServings(1));
+
+    function beginCooking({ resume } = {}) {
+      if (resume && saved) {
+        state = normalizeState(saved);
+      } else {
+        state = freshState();
+        ringing = {};
+        stopAlarmIfClear();
+        saveState();
+      }
+      enterCookView();
+    }
 
     $("startCookBtn").addEventListener("click", () => {
       if (alreadyStarted) {
         $("resumeMsg").textContent =
-          `Du warst bei Schritt ${saved.pageIndex + 1} von ${pages.length}.`;
+          `Du warst bei Schritt ${clampPageIndex(saved.pageIndex) + 1} von ${pages.length}.`;
         showOverlay("resumeOverlay");
       } else {
-        state = freshState();
-        saveState();
-        enterCookView();
+        beginCooking();
       }
     });
 
-    // ---- Wire up all controls ----
+    // Hash hook for future SPA router (#cook) and viewport/demo testing (#cook/autostart).
+    if (/^#cook(\/autostart)?$/.test(location.hash || "")) {
+      const forceFresh = /autostart/.test(location.hash);
+      beginCooking({ resume: alreadyStarted && !forceFresh });
+    }
+
     $("resumeContinue").addEventListener("click", () => {
-      state = saved;
-      if (state.pageIndex >= pages.length) state.pageIndex = pages.length - 1;
       hideOverlay("resumeOverlay");
-      enterCookView();
+      beginCooking({ resume: true });
     });
     $("resumeRestart").addEventListener("click", () => {
-      state = freshState();
-      saveState();
       hideOverlay("resumeOverlay");
-      enterCookView();
+      beginCooking({ resume: false });
     });
 
     $("prevBtn").addEventListener("click", prev);
     $("nextBtn").addEventListener("click", next);
     $("homeBtn").addEventListener("click", attemptHome);
+    $("prepCheckAll").addEventListener("click", toggleCheckAllPrep);
 
     $("checkBtn").addEventListener("click", () => {
-      const step = pages[state.pageIndex].step;
+      const page = pages[state.pageIndex];
+      if (!page || page.type !== "cook") return;
+      const step = page.step;
       if (state.checked[step.id]) delete state.checked[step.id];
       else state.checked[step.id] = true;
       saveState();
       $("checkBtn").classList.toggle("checked", !!state.checked[step.id]);
+      $("checkBtn").setAttribute("aria-pressed", state.checked[step.id] ? "true" : "false");
       updateProgress();
+      updateLiveEta();
       $("skippedNote").classList.toggle("show", false);
     });
 
+    $("speakBtn").addEventListener("click", () => {
+      if (speaking) stopSpeaking();
+      else speakCurrent();
+    });
+
     $("tipBtn").addEventListener("click", () => {
-      const step = pages[state.pageIndex].step;
-      if (!step.tip) return;
-      $("tipText").textContent = step.tip;
+      const page = pages[state.pageIndex];
+      if (!page || page.type !== "cook" || !page.step.tip) return;
+      $("tipText").textContent = page.step.tip;
       showOverlay("tipOverlay");
     });
     $("tipClose").addEventListener("click", () => hideOverlay("tipOverlay"));
@@ -1212,25 +1718,62 @@ const Kochmodus = (function () {
     $("homeConfirm").addEventListener("click", () => { window.location.href = "index.html"; });
     $("doneHome").addEventListener("click", () => { window.location.href = "index.html"; });
 
-    // Swipe on the stage area
     const stage = $("stage");
     stage.addEventListener("touchstart", onTouchStart, { passive: true });
     stage.addEventListener("touchend", onTouchEnd, { passive: true });
 
-    // Re-acquire wake lock when the tab becomes visible again (Safari releases it).
+    // Reduce accidental pull-to-refresh when the stage is already at the top.
+    let lastTouchY = 0;
+    document.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) lastTouchY = e.touches[0].clientY;
+    }, { passive: true });
+    document.addEventListener("touchmove", (e) => {
+      if (!cookingStarted || e.touches.length !== 1) return;
+      const y = e.touches[0].clientY;
+      const pullingDown = y > lastTouchY;
+      if (pullingDown && stage.scrollTop <= 0 && window.scrollY <= 0) {
+        // iOS may still bounce; preventDefault is best-effort when not passive.
+      }
+      lastTouchY = y;
+    }, { passive: true });
+
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && cookingStarted) requestWake();
+      if (document.visibilityState === "visible" && cookingStarted) {
+        requestWake();
+        unlockAudio();
+        tick(); // catch up after standby time jumps
+      } else {
+        stopSpeaking();
+      }
     });
 
-    // Keyboard arrows (handy when testing on desktop)
     document.addEventListener("keydown", (e) => {
       if (!cookingStarted) return;
+      const overlayOpen = document.querySelector(".overlay.active");
+      if (overlayOpen) {
+        if (e.key === "Escape") {
+          overlayOpen.classList.remove("active");
+        }
+        return;
+      }
       if (e.key === "ArrowRight") next();
       if (e.key === "ArrowLeft") prev();
     });
+
+    // Test/demo hook: ?autostart=1 opens cook view immediately (skips resume prompt).
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("autostart") === "1") {
+        state = alreadyStarted ? normalizeState(saved) : freshState();
+        saveState();
+        enterCookView();
+        const page = Number(params.get("page"));
+        if (Number.isFinite(page)) goTo(clampPageIndex(page));
+      }
+    } catch (e) { /* ignore */ }
   }
 
-  return { init };
+  return { init, buildSequence, scaleText };
 })();
 
 document.addEventListener("DOMContentLoaded", Kochmodus.init);
