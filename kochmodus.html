@@ -246,6 +246,45 @@
   .nav button:active { filter: brightness(0.9); }
   .nav button:disabled { opacity: 0.35; }
 
+  /* ===================== MIS EN PLACE (PREP) ===================== */
+  .card.prep { border-top-color: var(--freeze); }
+  .card.prep .recipe-name .tag { color: var(--freeze); background: rgba(53,208,186,0.14); }
+  .dot.prep.visited { background: rgba(53,208,186,0.35); }
+  .dot.prep.done { background: var(--freeze); }
+  .plan-row.prep { border-left-color: var(--freeze); }
+  .plan-row.prep .plan-tag { color: var(--freeze); background: rgba(53,208,186,0.14); }
+
+  .prep-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 auto; }
+  .prep-row {
+    display: flex; align-items: center; gap: 14px; cursor: pointer;
+    background: var(--surface-raised); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; border-left-width: 5px;
+  }
+  .prep-row.a { border-left-color: var(--accent-a); }
+  .prep-row.b { border-left-color: var(--accent-b); }
+  .prep-row:active { background: var(--line); }
+  .prep-box {
+    flex: none; width: 34px; height: 34px; border-radius: 9px;
+    border: 2px solid var(--line); display: inline-flex; align-items: center; justify-content: center;
+    color: transparent; transition: background 0.12s;
+  }
+  .prep-box svg { width: 22px; height: 22px; }
+  .prep-row.checked .prep-box { background: var(--freeze); border-color: var(--freeze); color: #052b26; }
+  .prep-text { flex: 1; font-size: clamp(17px, 2.4vw, 22px); line-height: 1.35; }
+  .prep-row.checked .prep-text { color: var(--text-muted); text-decoration: line-through; }
+  .prep-timer {
+    font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 20px;
+    color: var(--freeze); flex: none; font-variant-numeric: tabular-nums;
+  }
+  .prep-timer.ring { animation: pulse 0.7s infinite; }
+  .prep-tbtn {
+    flex: none; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 15px;
+    border: none; border-radius: 10px; padding: 12px 16px; cursor: pointer; min-height: 48px;
+  }
+  .prep-tbtn.start.a { background: var(--accent-a); color: #04132e; }
+  .prep-tbtn.start.b { background: var(--accent-b); color: #2e0606; }
+  .prep-tbtn.reset { background: var(--surface); color: var(--text); border: 1px solid var(--line); font-size: 20px; padding: 12px 18px; }
+
   /* ===================== OVERLAYS ===================== */
   .overlay {
     position: fixed; inset: 0; background: rgba(10,12,16,0.82);
@@ -321,7 +360,7 @@
 
   <div class="stage" id="stage">
     <div class="card" id="card">
-      <div class="card-actions">
+      <div class="card-actions" id="cardActions">
         <button class="icon-btn tip-btn" id="tipBtn" aria-label="Tipp anzeigen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.4 1 2.5v1h6v-1c0-1.1.3-1.8 1-2.5A6 6 0 0 0 12 3Z"/><path d="M9 21h6"/></svg>
         </button>
@@ -340,6 +379,9 @@
       <h2 class="step-text" id="stepText"></h2>
 
       <div class="chips" id="chips"></div>
+
+      <!-- Mis en place checklist (shown on prep pages instead of chips/timer) -->
+      <div class="prep-list" id="prepList" style="display:none;"></div>
 
       <div class="skipped-note" id="skippedNote">⚠︎ Übersprungen — noch nicht abgehakt</div>
 
@@ -429,7 +471,8 @@ const Kochmodus = (function () {
 
   // ---- Module state ----------------------------------------------------
   let recipes = [];      // the two recipes [A, B]
-  let pages = [];        // ordered sequence: { recipeIndex, step, recipe }
+  let pages = [];        // ordered sequence of prep + cook pages
+  let timerIndex = {};   // timer-capable id -> { recipeIndex, label, pageIndex }
   let sig = "";          // signature of the loaded menu (to invalidate old state)
   let state = null;      // persisted cook state
   let cookingStarted = false;
@@ -513,7 +556,7 @@ const Kochmodus = (function () {
 
       const lane = ready[0];
       const step = lane.steps[lane.ptr];
-      seq.push({ recipeIndex: lane.i, step, recipe: rcps[lane.i] });
+      seq.push({ type: "cook", recipeIndex: lane.i, step, recipe: rcps[lane.i] });
 
       lane.readyAt = T + activeMin(step); // free again after the active part
       T += activeMin(step);
@@ -523,6 +566,40 @@ const Kochmodus = (function () {
     }
 
     return { seq, totalMinutes: Math.round(Math.max(T, ...lanes.map(l => l.readyAt))) };
+  }
+
+  // ---- Mis en Place (prep) phase --------------------------------------
+  // The prep steps carry only a `category`, no timing. We batch them across
+  // BOTH recipes by category (cut everything at once, weigh everything at once)
+  // — the prep counterpart to the interleaved cooking order. The category order
+  // below is chosen so the chicken is cubed (schneiden) and the spices measured
+  // (abmessen) BEFORE the marinade page, so its 30-min timer can start early.
+  const PREP_CATEGORIES = {
+    schneiden:  { label: "Schneiden",   order: 1 },
+    abmessen:   { label: "Abmessen",    order: 2 },
+    marinieren: { label: "Marinieren",  order: 3 },
+    wiegen:     { label: "Wiegen",      order: 4 },
+    sonstiges:  { label: "Vorbereiten", order: 5 }
+  };
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  function buildPrepPages(rcps) {
+    const groups = {};
+    rcps.forEach((r, ri) => (r.misEnPlace || []).forEach(m => {
+      const c = m.category || "sonstiges";
+      (groups[c] = groups[c] || []).push({ recipeIndex: ri, item: m });
+    }));
+    const cats = Object.keys(groups).sort((a, b) => {
+      const oa = (PREP_CATEGORIES[a] || {}).order || 99;
+      const ob = (PREP_CATEGORIES[b] || {}).order || 99;
+      return oa - ob;
+    });
+    return cats.map(c => ({
+      type: "prep",
+      category: c,
+      label: (PREP_CATEGORIES[c] || {}).label || cap(c),
+      items: groups[c]
+    }));
   }
 
   // Detect devices that both recipes use passively at the same time -> the cook
@@ -633,21 +710,21 @@ const Kochmodus = (function () {
   // =====================================================================
   //  TIMERS  (absolute end timestamps so they survive reload & navigation)
   // =====================================================================
-  function startTimer(step) {
-    const durSec = step.timeMinutes * 60;
-    state.timers[step.id] = { endsAt: Date.now() + durSec * 1000, duration: durSec };
-    delete ringing[step.id];
+  // Timers are addressed by id (a cook step id OR a prep item id), so both the
+  // cooking timers and the marinade timer share the same machinery.
+  function startTimer(id, minutes) {
+    const durSec = minutes * 60;
+    state.timers[id] = { endsAt: Date.now() + durSec * 1000, duration: durSec };
+    delete ringing[id];
     saveState();
-    renderTimerBlock();
-    renderBgTimers();
+    renderPage();
   }
-  function resetTimer(step) {
-    delete state.timers[step.id];
-    delete ringing[step.id];
+  function resetTimer(id) {
+    delete state.timers[id];
+    delete ringing[id];
     stopAlarmIfClear();
     saveState();
-    renderTimerBlock();
-    renderBgTimers();
+    renderPage();
   }
   function timerRemaining(stepId) {
     const t = state.timers[stepId];
@@ -689,31 +766,67 @@ const Kochmodus = (function () {
     wrap.innerHTML = "";
     pages.forEach((p, idx) => {
       const dot = document.createElement("div");
-      dot.className = `dot ${ACCENT[p.recipeIndex]}`;
+      const cls = p.type === "prep" ? "prep" : ACCENT[p.recipeIndex];
+      dot.className = `dot ${cls}`;
       dot.dataset.idx = idx;
       dot.addEventListener("click", () => goTo(idx));
       wrap.appendChild(dot);
     });
   }
+  // A page is "done" when its checkable content is fully ticked.
+  function isPageDone(idx) {
+    const p = pages[idx];
+    if (p.type === "prep") return p.items.every(({ item }) => state.checked[item.id]);
+    return !!state.checked[p.step.id];
+  }
   function updateProgress() {
     [...$("progress").children].forEach((dot, idx) => {
-      const p = pages[idx];
       dot.classList.toggle("visited", !!state.visited[idx]);
-      dot.classList.toggle("done", !!state.checked[p.step.id]);
+      dot.classList.toggle("done", isPageDone(idx));
       dot.classList.toggle("current", idx === state.pageIndex);
     });
   }
+  // Checkable ids belonging to the current page (to hide their own timers
+  // from the "Nebenbei" background bar).
+  function pageOwnIds(page) {
+    return page.type === "prep" ? page.items.map(({ item }) => item.id) : [page.step.id];
+  }
 
+  // Shared page chrome, then delegate to the prep or cook renderer.
   function renderPage() {
     const p = pages[state.pageIndex];
+    $("stepCount").textContent =
+      (p.type === "prep" ? "Vorbereitung " : "Schritt ") + (state.pageIndex + 1) + " / " + pages.length;
+
+    if (p.type === "prep") renderPrepPage(p);
+    else renderCookPage(p);
+
+    renderBgTimers();
+    updateProgress();
+
+    // Next button becomes a finish button on the last page
+    const isLast = state.pageIndex === pages.length - 1;
+    const nextBtn = $("nextBtn");
+    nextBtn.classList.toggle("finish", isLast);
+    nextBtn.innerHTML = isLast
+      ? 'Fertig<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+      : 'Weiter<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+    $("prevBtn").disabled = state.pageIndex === 0;
+  }
+
+  function renderCookPage(p) {
     const step = p.step;
     const suffix = ACCENT[p.recipeIndex];
 
     $("card").className = `card ${suffix}`;
+    $("cardActions").style.display = "flex";
+    $("prepList").style.display = "none";
+    $("chips").style.display = "flex";
+    $("timerBlock").style.display = "flex";
+
     $("recipeTag").textContent = "Rezept " + String.fromCharCode(65 + p.recipeIndex);
     $("recipeName").textContent = p.recipe.name;
     $("stepText").textContent = step.text;
-    $("stepCount").textContent = `Schritt ${state.pageIndex + 1} / ${pages.length}`;
 
     // chips: device, total time, temperature (if present)
     const chips = [];
@@ -730,28 +843,65 @@ const Kochmodus = (function () {
     }
     $("chips").innerHTML = chips.join("");
 
-    // tip button
     $("tipBtn").classList.toggle("show", !!step.tip);
-
-    // check button
     $("checkBtn").classList.toggle("checked", !!state.checked[step.id]);
 
-    // skipped hint: page is behind us / visited earlier but never checked
-    const skipped = state.visited[state.pageIndex] && !state.checked[step.id] && hasProgressedBeyond(state.pageIndex);
+    // skipped hint: still unchecked while a later page has already been visited
+    const skipped = !state.checked[step.id] && hasProgressedBeyond(state.pageIndex);
     $("skippedNote").classList.toggle("show", skipped);
 
-    renderTimerBlock();
-    renderBgTimers();
-    updateProgress();
+    renderTimerBlock(step);
+  }
 
-    // Next button becomes a finish button on the last page
-    const isLast = state.pageIndex === pages.length - 1;
-    const nextBtn = $("nextBtn");
-    nextBtn.classList.toggle("finish", isLast);
-    nextBtn.innerHTML = isLast
-      ? 'Fertig<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
-      : 'Weiter<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
-    $("prevBtn").disabled = state.pageIndex === 0;
+  function renderPrepPage(p) {
+    $("card").className = "card prep";
+    $("cardActions").style.display = "none";
+    $("chips").style.display = "none";
+    $("timerBlock").style.display = "none";
+    $("skippedNote").classList.remove("show");
+    $("prepList").style.display = "flex";
+
+    $("recipeTag").textContent = "Vorbereitung";
+    $("recipeName").textContent = `${p.items.length} ${p.items.length === 1 ? "Sache" : "Sachen"}`;
+    $("stepText").textContent = p.label;
+
+    const list = $("prepList");
+    list.innerHTML = p.items.map(({ recipeIndex, item }) => {
+      const suffix = ACCENT[recipeIndex];
+      const checked = !!state.checked[item.id];
+      const hasTimer = item.timerMinutes != null;
+      const running = state.timers[item.id];
+      let timerHtml = "";
+      if (hasTimer) {
+        timerHtml = running
+          ? `<span class="prep-timer ${ringing[item.id] ? "ring" : ""}" data-tid="${item.id}">${ringing[item.id] ? "fertig!" : fmt(timerRemaining(item.id))}</span>
+             <button class="prep-tbtn reset" data-reset="${item.id}" aria-label="Timer zurücksetzen">↺</button>`
+          : `<button class="prep-tbtn start ${suffix}" data-start="${item.id}" data-min="${item.timerMinutes}">Timer ${item.timerMinutes}′</button>`;
+      }
+      return `<div class="prep-row ${suffix} ${checked ? "checked" : ""}" data-check="${item.id}">
+        <span class="prep-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="prep-text">${esc(item.text)}</span>
+        ${timerHtml}
+      </div>`;
+    }).join("");
+
+    // A tap on the row toggles the check; timer buttons stop propagation.
+    list.querySelectorAll("[data-check]").forEach(el => {
+      el.addEventListener("click", () => toggleCheck(el.dataset.check));
+    });
+    list.querySelectorAll("[data-start]").forEach(b => {
+      b.addEventListener("click", e => { e.stopPropagation(); unlockAudio(); startTimer(b.dataset.start, Number(b.dataset.min)); });
+    });
+    list.querySelectorAll("[data-reset]").forEach(b => {
+      b.addEventListener("click", e => { e.stopPropagation(); delete ringing[b.dataset.reset]; resetTimer(b.dataset.reset); });
+    });
+  }
+
+  function toggleCheck(id) {
+    if (state.checked[id]) delete state.checked[id];
+    else state.checked[id] = true;
+    saveState();
+    renderPage();
   }
 
   // Has any later page been visited? (used to decide "skipped" styling)
@@ -759,19 +909,18 @@ const Kochmodus = (function () {
     return Object.keys(state.visited).some(k => Number(k) > idx);
   }
 
-  function renderTimerBlock() {
-    const step = pages[state.pageIndex].step;
+  function renderTimerBlock(step) {
     const block = $("timerBlock");
     const rem = timerRemaining(step.id);
-    const active = state.timers[step.id];
+    const running = state.timers[step.id];
 
-    if (!active) {
+    if (!running) {
       block.innerHTML =
         `<button class="timer-btn start" id="timerStart">
            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
            Timer ${step.timeMinutes}:00 starten
          </button>`;
-      $("timerStart").addEventListener("click", () => { unlockAudio(); startTimer(step); });
+      $("timerStart").addEventListener("click", () => { unlockAudio(); startTimer(step.id, step.timeMinutes); });
       return;
     }
 
@@ -784,52 +933,74 @@ const Kochmodus = (function () {
        </button>`;
     $("timerReset").addEventListener("click", () => {
       if (ringing[step.id]) delete ringing[step.id];
-      resetTimer(step);
-      stopAlarmIfClear();
+      resetTimer(step.id);
     });
   }
 
   function updateTimerTexts() {
-    const step = pages[state.pageIndex].step;
-    const disp = $("timerDisp");
-    if (disp && state.timers[step.id]) {
-      const rem = timerRemaining(step.id);
-      disp.textContent = fmt(rem);
-      disp.classList.toggle("ring", !!ringing[step.id]);
+    const p = pages[state.pageIndex];
+    if (p.type === "cook") {
+      const disp = $("timerDisp");
+      if (disp && state.timers[p.step.id]) {
+        disp.textContent = fmt(timerRemaining(p.step.id));
+        disp.classList.toggle("ring", !!ringing[p.step.id]);
+      }
+    } else {
+      p.items.forEach(({ item }) => {
+        const el = $("prepList").querySelector(`.prep-timer[data-tid="${item.id}"]`);
+        if (el && state.timers[item.id]) {
+          el.textContent = ringing[item.id] ? "fertig!" : fmt(timerRemaining(item.id));
+          el.classList.toggle("ring", !!ringing[item.id]);
+        }
+      });
     }
   }
 
-  // "Nebenbei" bar: every running/finished timer that is NOT the current step.
+  // "Nebenbei" bar: every running/finished timer that is NOT on the current page.
   function renderBgTimers() {
     const wrap = $("bgTimers");
-    const currentId = pages[state.pageIndex].step.id;
+    const own = new Set(pageOwnIds(pages[state.pageIndex]));
     const chips = [];
     for (const id in state.timers) {
-      if (id === currentId) continue;
-      const page = pages.find(p => p.step.id === id);
-      if (!page) continue;
+      if (own.has(id)) continue;
+      const src = timerIndex[id];
+      if (!src) continue;
       const rem = timerRemaining(id);
       const ring = ringing[id];
-      const suffix = ACCENT[page.recipeIndex];
-      const short = shortName(page.step);
+      const suffix = ACCENT[src.recipeIndex];
       chips.push(
         `<span class="bg-chip ${suffix} ${ring ? "ring" : ""}" data-id="${id}">
-           <span class="led"></span>${esc(short)} · ${ring ? "fertig!" : fmt(rem)}
+           <span class="led"></span>${esc(src.label)} · ${ring ? "fertig!" : fmt(rem)}
          </span>`);
     }
     wrap.innerHTML = chips.join("");
     [...wrap.children].forEach(chip => {
       chip.addEventListener("click", () => {
-        const idx = pages.findIndex(p => p.step.id === chip.dataset.id);
-        if (idx >= 0) goTo(idx);
+        const src = timerIndex[chip.dataset.id];
+        if (src) goTo(src.pageIndex);
       });
     });
   }
+
+  // Register every timer-capable id (all cook steps + prep items with a timer).
+  function buildTimerIndex() {
+    timerIndex = {};
+    pages.forEach((p, idx) => {
+      if (p.type === "prep") {
+        p.items.forEach(({ recipeIndex, item }) => {
+          if (item.timerMinutes != null) timerIndex[item.id] = { recipeIndex, label: shortName(item), pageIndex: idx };
+        });
+      } else {
+        timerIndex[p.step.id] = { recipeIndex: p.recipeIndex, label: shortName(p.step), pageIndex: idx };
+      }
+    });
+  }
+
   // A short label for the "Nebenbei" chip. Prefer an explicit shortLabel from
-  // the data; otherwise fall back to the first two words of the step text.
-  function shortName(step) {
-    if (step.shortLabel) return step.shortLabel;
-    return step.text.split(/[\s,]+/).slice(0, 2).join(" ");
+  // the data; otherwise fall back to the first two words of the text.
+  function shortName(obj) {
+    if (obj.shortLabel) return obj.shortLabel;
+    return obj.text.split(/[\s,]+/).slice(0, 2).join(" ");
   }
 
   // =====================================================================
@@ -852,13 +1023,13 @@ const Kochmodus = (function () {
   function anyTimerRunning() {
     return Object.keys(state.timers).some(id => timerRemaining(id) > 0);
   }
-  function allChecked() {
-    return pages.every(p => state.checked[p.step.id]);
+  function allDone() {
+    return pages.every((_, idx) => isPageDone(idx));
   }
 
   function attemptHome() {
     // Confirm only when there is something to lose: a running timer or unfinished cook.
-    if (anyTimerRunning() || !allChecked()) {
+    if (anyTimerRunning() || !allDone()) {
       const msg = anyTimerRunning()
         ? "Es läuft noch ein Timer und nicht alle Schritte sind abgehakt. Dein Fortschritt bleibt gespeichert."
         : "Nicht alle Schritte sind abgehakt. Dein Fortschritt bleibt gespeichert.";
@@ -904,9 +1075,10 @@ const Kochmodus = (function () {
   // =====================================================================
   function renderStartScreen(data, totalMinutes, deviceNeeds) {
     $("weekLabel").textContent = data.week ? `Woche ${data.week}` : "";
+    const prepCount = pages.filter(p => p.type === "prep").length;
     $("etaRow").innerHTML =
-      `<span class="eta-chip">⏱ ≈ ${totalMinutes} Min gesamt</span>
-       <span class="eta-chip">▦ ${pages.length} Schritte</span>
+      `<span class="eta-chip">⏱ ≈ ${totalMinutes} Min Kochen</span>
+       <span class="eta-chip">▦ ${prepCount} Prep · ${pages.length - prepCount} Kochschritte</span>
        <span class="eta-chip">🍱 ${recipes.map(r => r.name).join("  +  ")}</span>`;
 
     if (deviceNeeds.length) {
@@ -919,6 +1091,15 @@ const Kochmodus = (function () {
     }
 
     const rows = pages.map((p, idx) => {
+      if (p.type === "prep") {
+        const items = p.items.map(({ item }) => esc(item.text)).join(" · ");
+        return `<div class="plan-row prep">
+          <span class="plan-idx">${idx + 1}</span>
+          <span class="plan-tag">PREP</span>
+          <span class="plan-text"><strong>${esc(p.label)}</strong> — ${items}</span>
+          <span class="plan-time"></span>
+        </div>`;
+      }
       const suffix = ACCENT[p.recipeIndex];
       const pm = passiveMin(p.step);
       const t = pm > 0 ? `${p.step.timeMinutes}′ (${activeMin(p.step)}′ aktiv)` : `${p.step.timeMinutes}′`;
@@ -967,7 +1148,9 @@ const Kochmodus = (function () {
     recipes = data.recipes.slice(0, 2);
     sig = menuSignature(data);
     const built = buildSequence(recipes);
-    pages = built.seq;
+    // Prep (mis en place) pages come first, then the interleaved cooking pages.
+    pages = [...buildPrepPages(recipes), ...built.seq];
+    buildTimerIndex();
     const deviceNeeds = detectDeviceNeeds(recipes);
 
     renderStartScreen(data, built.totalMinutes, deviceNeeds);

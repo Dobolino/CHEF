@@ -21,7 +21,7 @@
       "misEnPlace": [
         { "id": "hb-mep-1", "text": "Hähnchenbrust in 2cm Würfel schneiden", "category": "schneiden" },
         { "id": "hb-mep-2", "text": "Gewürze abmessen: Paprika edelsüss, Kreuzkümmel, Sumach", "category": "abmessen" },
-        { "id": "hb-mep-3", "text": "Hähnchen mit Gewürzen und 2 EL Joghurt marinieren, mind. 30 Min", "category": "marinieren" },
+        { "id": "hb-mep-3", "text": "Hähnchen mit Gewürzen und 2 EL Joghurt marinieren, mind. 30 Min", "shortLabel": "Marinade", "category": "marinieren", "timerMinutes": 30 },
         { "id": "hb-mep-4", "text": "Gurke und Tomaten würfeln", "category": "schneiden" },
         { "id": "hb-mep-5", "text": "Knoblauch für die Sauce pressen", "category": "schneiden" },
         { "id": "hb-mep-6", "text": "Bulgur abwiegen (375g für 5 Portionen)", "category": "wiegen" }
