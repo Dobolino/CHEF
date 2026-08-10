@@ -208,15 +208,17 @@
 
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 
-  /* Main focus card — fill the stage, less wasted margin on tablets */
+  /* Main focus card — height follows content (no empty stretched box) */
   .stage {
     flex: 1; min-height: 0; overflow-y: auto; display: flex;
+    flex-direction: column; align-items: stretch;
     padding: clamp(8px, 1.5vw, 16px) var(--pad-x);
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
   .card {
-    flex: 1; display: flex; flex-direction: column; min-width: 0; width: 100%;
+    flex: 0 0 auto; display: flex; flex-direction: column; min-width: 0; width: 100%;
+    height: auto; align-self: stretch;
     background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
     border-top-width: 8px; padding: clamp(14px, 2.5vw, 28px); position: relative;
   }
@@ -243,7 +245,7 @@
     overflow-wrap: anywhere;
   }
 
-  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: auto; }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
   .chip {
     font-family: 'IBM Plex Mono', monospace; font-size: clamp(14px, 2vw, 18px); font-weight: 600;
     background: var(--surface-raised); border: 1px solid var(--line); border-radius: 12px;
@@ -362,7 +364,7 @@
   }
 
   .prep-list {
-    display: flex; flex-direction: column; gap: 10px; margin: 0 0 auto;
+    display: flex; flex-direction: column; gap: 10px; margin: 0;
   }
   @media (min-width: 900px) and (min-height: 500px) {
     .prep-list.grid-2 {
