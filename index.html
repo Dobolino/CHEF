@@ -320,7 +320,7 @@
           <div class="cell"><span class="val">${macros.fiber_g ?? "–"}</span><span class="lbl">Ball.</span></div>
         </div>
         ${notesHtml ? `<div class="notes">${notesHtml}</div>` : ""}
-        <div class="mep-count">${(recipe.misEnPlace || []).length} Mis-en-Place-Schritte · ${(recipe.steps || []).length} Kochschritte</div>
+        <div class="mep-count">${(recipe.ingredients || []).length ? (recipe.ingredients.length) + " Zutaten · " : ""}${(recipe.misEnPlace || []).length} Mis-en-Place · ${(recipe.steps || []).length} Kochschritte</div>
       `;
       grid.appendChild(ticket);
     });

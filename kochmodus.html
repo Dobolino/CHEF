@@ -251,6 +251,23 @@
   }
   .chip svg { width: 18px; height: 18px; opacity: 0.85; flex: none; }
   .chip.temp { color: var(--accent-b); }
+  .chip.use {
+    font-size: clamp(13px, 1.8vw, 16px);
+    padding: 8px 12px;
+    background: rgba(53, 208, 186, 0.1);
+    border-color: rgba(53, 208, 186, 0.35);
+    color: var(--text);
+  }
+  .uses-block {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 0 0 clamp(12px, 2vh, 20px);
+  }
+  .uses-block:empty { display: none; }
+  .prep-uses {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    width: 100%; margin-top: 6px;
+  }
+  .prep-uses .chip.use { padding: 6px 10px; font-size: 13px; }
 
   /* Timer block */
   .timer-block { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: clamp(20px, 3.5vh, 36px); }
@@ -356,8 +373,14 @@
   }
   .prep-box svg { width: 22px; height: 22px; }
   .prep-row.checked .prep-box { background: var(--freeze); border-color: var(--freeze); color: #052b26; }
-  .prep-text { flex: 1 1 140px; font-size: clamp(16px, 2.3vw, 21px); line-height: 1.35; min-width: 0; }
+  .prep-text {
+    flex: 1 1 140px; font-size: clamp(16px, 2.3vw, 21px); line-height: 1.35; min-width: 0;
+    display: flex; flex-direction: column; align-items: flex-start;
+  }
   .prep-row.checked .prep-text { color: var(--text-muted); text-decoration: line-through; }
+  .prep-optional {
+    color: var(--text-muted); font-weight: 500; font-size: 0.85em;
+  }
   .prep-actions { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
   .prep-timer {
     font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 18px;
@@ -451,9 +474,8 @@
     <div class="week" id="weekLabel"></div>
   </div>
   <p class="start-sub">
-    Zwei Rezepte parallel — die Reihenfolge ist so verzahnt, dass Wartezeiten des einen
-    Rezepts für aktive Arbeit am anderen genutzt werden. Tippe die grossen Buttons unten
-    oder wische nach links/rechts.
+    Zwei Rezepte parallel — zuerst Zutaten checken, dann Mis en Place, danach
+    verzahnt kochen. Tippe die grossen Buttons unten oder wische nach links/rechts.
   </p>
 
   <div class="eta-row" id="etaRow"></div>
@@ -514,6 +536,7 @@
       <h2 class="step-text" id="stepText"></h2>
 
       <div class="chips" id="chips"></div>
+      <div class="uses-block" id="usesBlock" aria-label="Mengen für diesen Schritt"></div>
 
       <div class="prep-toolbar" id="prepToolbar" style="display:none;">
         <button type="button" class="prep-all-btn" id="prepCheckAll">Alle abhaken</button>
@@ -745,7 +768,7 @@ const Kochmodus = (function () {
     return { seq, totalMinutes: Math.round(wall) };
   }
 
-  // ---- Mis en Place (prep) phase --------------------------------------
+  // ---- Mis en Place (prep) + ingredients (shopping checklist) ----------
   const PREP_CATEGORIES = {
     schneiden:  { label: "Schneiden",   order: 1 },
     abmessen:   { label: "Abmessen",    order: 2 },
@@ -753,7 +776,46 @@ const Kochmodus = (function () {
     wiegen:     { label: "Wiegen",      order: 4 },
     sonstiges:  { label: "Vorbereiten", order: 5 }
   };
+  // Shopping / pantry groups — shown BEFORE prep work so everything is on the counter.
+  const INGREDIENT_CATEGORIES = {
+    gemuese:      { label: "Gemüse & Obst",     order: 1 },
+    fleisch_fisch:{ label: "Fleisch & Fisch",   order: 2 },
+    milch_ei:     { label: "Milch & Ei",        order: 3 },
+    trockenes:    { label: "Getreide & Trocken", order: 4 },
+    konserven:    { label: "Konserven",         order: 5 },
+    gewuerze:     { label: "Gewürze",           order: 6 },
+    oele_saucen:  { label: "Öle & Saucen",      order: 7 },
+    sonstiges:    { label: "Sonstiges",         order: 8 }
+  };
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  function buildIngredientPages(rcps) {
+    const groups = {};
+    rcps.forEach((r, ri) => (r.ingredients || []).forEach(ing => {
+      if (!ing || !ing.id) return;
+      const c = ing.category || "sonstiges";
+      (groups[c] = groups[c] || []).push({
+        recipeIndex: ri,
+        item: {
+          id: ing.id,
+          text: ing.name || ing.id,
+          optional: !!ing.optional,
+          ingredient: ing
+        }
+      });
+    }));
+    const cats = Object.keys(groups).sort((a, b) => {
+      const oa = (INGREDIENT_CATEGORIES[a] || {}).order || 99;
+      const ob = (INGREDIENT_CATEGORIES[b] || {}).order || 99;
+      return oa - ob;
+    });
+    return cats.map(c => ({
+      type: "ingredients",
+      category: c,
+      label: (INGREDIENT_CATEGORIES[c] || {}).label || cap(c),
+      items: groups[c]
+    }));
+  }
 
   function buildPrepPages(rcps) {
     const groups = {};
@@ -783,6 +845,44 @@ const Kochmodus = (function () {
       passiveDevices[0].forEach(d => { if (passiveDevices[1].has(d)) needs.push(d); });
     }
     return needs;
+  }
+
+  // Resolve step/prep `uses` against the recipe ingredient list (optional overrides).
+  function findIngredient(recipe, id) {
+    return ((recipe && recipe.ingredients) || []).find(i => i.id === id) || null;
+  }
+  function formatScaledAmount(amount, unit) {
+    if (amount == null || amount === "") return unit ? String(unit) : "";
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return `${amount}${unit ? " " + unit : ""}`;
+    const scaled = scaleNumber(n, baseServings, targetServings);
+    return unit ? `${scaled} ${unit}` : scaled;
+  }
+  function resolveUses(recipe, uses) {
+    if (!uses || !uses.length) return [];
+    return uses.map(u => {
+      if (!u) return null;
+      const ing = u.ingredientId ? findIngredient(recipe, u.ingredientId) : null;
+      const name = u.name || (ing && ing.name) || u.ingredientId || "";
+      const amount = u.amount != null ? u.amount : (ing ? ing.amount : null);
+      const unit = u.unit != null ? u.unit : (ing ? ing.unit : "");
+      return { name, amount, unit, id: u.ingredientId || name };
+    }).filter(Boolean);
+  }
+  function useChipHtml(use) {
+    const qty = formatScaledAmount(use.amount, use.unit);
+    const label = qty ? `${qty} ${use.name}` : use.name;
+    return `<span class="chip use">${esc(label)}</span>`;
+  }
+  function renderUsesInto(el, recipe, uses) {
+    if (!el) return;
+    const resolved = resolveUses(recipe, uses);
+    el.innerHTML = resolved.map(useChipHtml).join("");
+    el.style.display = resolved.length ? "flex" : "none";
+  }
+  function ingredientLine(ing) {
+    const qty = formatScaledAmount(ing.amount, ing.unit);
+    return qty ? `${qty} ${ing.name}` : (ing.name || "");
   }
 
   // =====================================================================
@@ -989,10 +1089,22 @@ const Kochmodus = (function () {
     if (!window.speechSynthesis) return;
     const p = pages[state.pageIndex];
     let text = "";
-    if (p.type === "prep") {
-      text = p.label + ". " + p.items.map(({ item }) => displayText(item)).join(". ");
+    if (p.type === "prep" || p.type === "ingredients") {
+      text = (p.type === "ingredients" ? "Zutaten. " : "") + p.label + ". " +
+        p.items.map(({ item, recipeIndex }) => {
+          if (p.type === "ingredients" && item.ingredient) return ingredientLine(item.ingredient);
+          const uses = resolveUses(recipes[recipeIndex], item.uses);
+          const useTxt = uses.length
+            ? " (" + uses.map(u => formatScaledAmount(u.amount, u.unit) + " " + u.name).join(", ") + ")"
+            : "";
+          return displayText(item) + useTxt;
+        }).join(". ");
     } else {
-      text = displayText(p.step);
+      const uses = resolveUses(p.recipe, p.step.uses);
+      const useTxt = uses.length
+        ? ". Mengen: " + uses.map(u => formatScaledAmount(u.amount, u.unit) + " " + u.name).join(", ")
+        : "";
+      text = displayText(p.step) + useTxt;
     }
     stopSpeaking();
     const u = new SpeechSynthesisUtterance(text);
@@ -1096,7 +1208,9 @@ const Kochmodus = (function () {
     wrap.innerHTML = "";
     pages.forEach((p, idx) => {
       const dot = document.createElement("button");
-      const cls = p.type === "prep" ? "prep" : ACCENT[p.recipeIndex % ACCENT.length];
+      const cls = (p.type === "prep" || p.type === "ingredients")
+        ? "prep"
+        : ACCENT[p.recipeIndex % ACCENT.length];
       dot.type = "button";
       dot.className = `dot ${cls}`;
       dot.dataset.idx = idx;
@@ -1109,14 +1223,16 @@ const Kochmodus = (function () {
   function isPageDone(idx) {
     const p = pages[idx];
     if (!p) return false;
-    if (p.type === "prep") return p.items.every(({ item }) => state.checked[item.id]);
+    if (p.type === "prep" || p.type === "ingredients") {
+      return p.items.every(({ item }) => state.checked[item.id]);
+    }
     return !!state.checked[p.step.id];
   }
 
   function progressPercent() {
     let total = 0, done = 0;
     pages.forEach(p => {
-      if (p.type === "prep") {
+      if (p.type === "prep" || p.type === "ingredients") {
         p.items.forEach(({ item }) => {
           total++;
           if (state.checked[item.id]) done++;
@@ -1168,20 +1284,25 @@ const Kochmodus = (function () {
   }
 
   function pageOwnIds(page) {
-    return page.type === "prep" ? page.items.map(({ item }) => item.id) : [page.step.id];
+    if (page.type === "prep" || page.type === "ingredients") {
+      return page.items.map(({ item }) => item.id);
+    }
+    return [page.step.id];
   }
 
   function renderPage() {
     const p = pages[state.pageIndex];
     if (!p) return;
 
-    $("stepCount").textContent =
-      (p.type === "prep" ? "Vorbereitung " : "Schritt ") + (state.pageIndex + 1) + " / " + pages.length;
+    const kindLabel = p.type === "ingredients"
+      ? "Zutaten "
+      : (p.type === "prep" ? "Vorbereitung " : "Schritt ");
+    $("stepCount").textContent = kindLabel + (state.pageIndex + 1) + " / " + pages.length;
 
     // Speak button is available on both prep and cook pages.
     $("speakBtn").style.display = "inline-flex";
 
-    if (p.type === "prep") renderPrepPage(p);
+    if (p.type === "prep" || p.type === "ingredients") renderPrepPage(p);
     else renderCookPage(p);
 
     renderBgTimers();
@@ -1208,6 +1329,7 @@ const Kochmodus = (function () {
     $("prepToolbar").style.display = "none";
     $("chips").style.display = "flex";
     $("timerBlock").style.display = "flex";
+    $("usesBlock").style.display = "flex";
 
     $("recipeTag").textContent = "Rezept " + String.fromCharCode(65 + p.recipeIndex);
     $("recipeName").textContent = p.recipe.name;
@@ -1226,6 +1348,7 @@ const Kochmodus = (function () {
       chips.push(`<span class="chip temp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 13V5a2 2 0 1 1 4 0v8a4 4 0 1 1-4 0Z"/></svg>${step.temperatureC} °C</span>`);
     }
     $("chips").innerHTML = chips.join("");
+    renderUsesInto($("usesBlock"), p.recipe, step.uses);
 
     $("tipBtn").classList.toggle("show", !!step.tip);
     const checked = !!state.checked[step.id];
@@ -1239,19 +1362,22 @@ const Kochmodus = (function () {
   }
 
   function renderPrepPage(p) {
+    const isIngredients = p.type === "ingredients";
     $("card").className = "card prep";
     $("cardActions").style.display = "flex";
     $("tipBtn").classList.remove("show");
     $("checkBtn").style.display = "none";
     $("chips").style.display = "none";
     $("timerBlock").style.display = "none";
+    $("usesBlock").style.display = "none";
+    $("usesBlock").innerHTML = "";
     $("skippedNote").classList.remove("show");
     $("prepList").style.display = "flex";
     $("prepToolbar").style.display = "flex";
 
-    $("recipeTag").textContent = "Vorbereitung";
+    $("recipeTag").textContent = isIngredients ? "Zutaten" : "Vorbereitung";
     $("recipeName").textContent = `${p.items.length} ${p.items.length === 1 ? "Sache" : "Sachen"}`;
-    $("stepText").textContent = p.label;
+    $("stepText").textContent = isIngredients ? ("Zutaten · " + p.label) : p.label;
 
     const allChecked = p.items.every(({ item }) => state.checked[item.id]);
     $("prepCheckAll").textContent = allChecked ? "Alle abwählen" : "Alle abhaken";
@@ -1260,7 +1386,8 @@ const Kochmodus = (function () {
     list.innerHTML = p.items.map(({ recipeIndex, item }) => {
       const suffix = ACCENT[recipeIndex % ACCENT.length];
       const checked = !!state.checked[item.id];
-      const hasTimer = item.timerMinutes != null;
+      const recipe = recipes[recipeIndex];
+      const hasTimer = !isIngredients && item.timerMinutes != null;
       const running = state.timers[item.id];
       let timerHtml = "";
       if (hasTimer) {
@@ -1279,9 +1406,24 @@ const Kochmodus = (function () {
                <button class="prep-tbtn start ${suffix}" data-start="${item.id}" data-min="${draft}" type="button">Timer</button>
              </div>`;
       }
-      return `<div class="prep-row ${suffix} ${checked ? "checked" : ""}" data-check="${item.id}" role="checkbox" aria-checked="${checked}" tabindex="0">
+
+      let mainText;
+      let usesHtml = "";
+      if (isIngredients && item.ingredient) {
+        mainText = esc(ingredientLine(item.ingredient));
+        if (item.optional) mainText += ` <span class="prep-optional">(meist da)</span>`;
+      } else {
+        mainText = esc(displayText(item));
+        const uses = resolveUses(recipe, item.uses);
+        if (uses.length) {
+          usesHtml = `<div class="prep-uses">${uses.map(useChipHtml).join("")}</div>`;
+        }
+      }
+
+      const optClass = (isIngredients && item.optional) ? "optional" : "";
+      return `<div class="prep-row ${suffix} ${checked ? "checked" : ""} ${optClass}" data-check="${item.id}" role="checkbox" aria-checked="${checked}" tabindex="0">
         <span class="prep-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-        <span class="prep-text">${esc(displayText(item))}</span>
+        <span class="prep-text"><span>${mainText}</span>${usesHtml}</span>
         ${timerHtml}
       </div>`;
     }).join("");
@@ -1328,7 +1470,7 @@ const Kochmodus = (function () {
 
   function toggleCheckAllPrep() {
     const p = pages[state.pageIndex];
-    if (!p || p.type !== "prep") return;
+    if (!p || (p.type !== "prep" && p.type !== "ingredients")) return;
     const allChecked = p.items.every(({ item }) => state.checked[item.id]);
     p.items.forEach(({ item }) => {
       if (allChecked) delete state.checked[item.id];
@@ -1451,13 +1593,14 @@ const Kochmodus = (function () {
             timerIndex[item.id] = { recipeIndex, label: shortName(item), pageIndex: idx };
           }
         });
-      } else {
+      } else if (p.type === "cook") {
         timerIndex[p.step.id] = {
           recipeIndex: p.recipeIndex,
           label: shortName(p.step),
           pageIndex: idx
         };
       }
+      // ingredients pages have no timers
     });
   }
 
@@ -1543,9 +1686,11 @@ const Kochmodus = (function () {
     $("weekLabel").textContent = data.week ? `Woche ${data.week}` : "";
     $("servingsVal").textContent = String(targetServings);
     const prepCount = pages.filter(p => p.type === "prep").length;
+    const ingCount = pages.filter(p => p.type === "ingredients").length;
+    const cookCount = pages.filter(p => p.type === "cook").length;
     $("etaRow").innerHTML =
       `<span class="eta-chip">≈ ${totalMinutes} Min Kochen</span>
-       <span class="eta-chip">${prepCount} Prep · ${pages.length - prepCount} Kochschritte</span>
+       <span class="eta-chip">${ingCount ? ingCount + " Zutaten · " : ""}${prepCount} Prep · ${cookCount} Kochschritte</span>
        <span class="eta-chip">${recipes.map(r => r.name).join("  +  ")}</span>`;
 
     if (deviceNeeds.length) {
@@ -1560,6 +1705,15 @@ const Kochmodus = (function () {
     }
 
     const rows = pages.map((p, idx) => {
+      if (p.type === "ingredients") {
+        const items = p.items.map(({ item }) => esc(item.ingredient ? ingredientLine(item.ingredient) : item.text)).join(" · ");
+        return `<div class="plan-row prep">
+          <span class="plan-idx">${idx + 1}</span>
+          <span class="plan-tag">ZUTATEN</span>
+          <span class="plan-text"><strong>${esc(p.label)}</strong> — ${items}</span>
+          <span class="plan-time"></span>
+        </div>`;
+      }
       if (p.type === "prep") {
         const items = p.items.map(({ item }) => esc(displayText(item))).join(" · ");
         return `<div class="plan-row prep">
@@ -1631,7 +1785,7 @@ const Kochmodus = (function () {
 
     const built = buildSequence(recipes);
     plannedCookMinutes = built.totalMinutes;
-    pages = [...buildPrepPages(recipes), ...built.seq];
+    pages = [...buildIngredientPages(recipes), ...buildPrepPages(recipes), ...built.seq];
     buildTimerIndex();
     const deviceNeeds = detectDeviceNeeds(recipes);
 
