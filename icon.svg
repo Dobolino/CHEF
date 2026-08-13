@@ -1,0 +1,44 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- App icon: chef's toque with a blue|red split band = two recipes, one cook.
+       Dark theme background; full-bleed square so iOS applies its own mask. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#20242e"/>
+      <stop offset="1" stop-color="#12151a"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.3" r="0.72">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="bandClip"><rect x="170" y="322" width="172" height="60" rx="18"/></clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+
+  <!-- Toque: white cylinder + puffy crown (overlapping circles read as one hat) -->
+  <g fill="#eef1f6">
+    <rect x="180" y="248" width="152" height="90"/>
+    <circle cx="256" cy="200" r="80"/>
+    <circle cx="192" cy="240" r="66"/>
+    <circle cx="320" cy="240" r="66"/>
+  </g>
+
+  <!-- Soft shading at the base of the crown for depth -->
+  <rect x="180" y="300" width="152" height="38" fill="#000000" opacity="0.05"/>
+
+  <!-- Pleat folds -->
+  <g stroke="#ccd4e0" stroke-width="6" stroke-linecap="round" opacity="0.7">
+    <line x1="214" y1="268" x2="214" y2="318"/>
+    <line x1="256" y1="262" x2="256" y2="318"/>
+    <line x1="298" y1="268" x2="298" y2="318"/>
+  </g>
+
+  <!-- Headband, split blue | red -->
+  <g clip-path="url(#bandClip)">
+    <rect x="150" y="322" width="106" height="60" fill="#4c8dff"/>
+    <rect x="256" y="322" width="112" height="60" fill="#ff5c5c"/>
+    <rect x="170" y="322" width="172" height="8" fill="#ffffff" opacity="0.18"/>
+  </g>
+</svg>
