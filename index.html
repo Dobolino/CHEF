@@ -119,6 +119,9 @@
 
   .toolbar button:active, .toolbar label:active, .toolbar a:active { background: var(--surface-raised); }
   .toolbar a.primary { background: var(--accent-a); color: #04132e; border-color: transparent; flex: 2 1 220px; }
+  .toolbar button.danger {
+    background: var(--accent-b-dim); color: var(--accent-b); border-color: rgba(255,92,92,0.45);
+  }
 
   .servings-bar {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -390,6 +393,7 @@
     <input type="file" id="fileInput" accept="application/json">
     <button type="button" id="loadDemoBtn">Beispielrezepte laden</button>
     <button type="button" id="exportBtn">JSON exportieren</button>
+    <button type="button" class="danger" id="clearAllBtn">Alle Rezepte löschen</button>
     <a class="primary" href="kochmodus.html">Kochmodus starten →</a>
   </div>
 
@@ -433,6 +437,8 @@
   const STORAGE_RECIPES = "batchcooking_recipes";
   const STORAGE_SERVINGS = "batchcooking_servings";
   const STORAGE_MISE = "batchcooking_mise_checks";
+  const STORAGE_COOK = "batchcooking_cook_state";
+  const STORAGE_WEEKNOTE = "batchcooking_week_note";
   const ACCENT_CLASSES = ["recipe-a", "recipe-b"];
   const ING_CATS = {
     gemuese: "Gemüse & Obst",
@@ -749,24 +755,58 @@
     if (isMise) renderMise();
   }
 
+  function clearSessionData() {
+    // Wipe cook progress / mise checks so an import never mixes with the old menu.
+    try { localStorage.removeItem(STORAGE_COOK); } catch (e) { /* ignore */ }
+    try { localStorage.removeItem(STORAGE_MISE); } catch (e) { /* ignore */ }
+    try { localStorage.removeItem(STORAGE_WEEKNOTE); } catch (e) { /* ignore */ }
+  }
+
+  function clearAllRecipes() {
+    clearSessionData();
+    // Keep an explicit empty menu so boot/cook do not auto-reload the demo.
+    const empty = { recipes: [] };
+    try { localStorage.setItem(STORAGE_RECIPES, JSON.stringify(empty)); } catch (e) { /* ignore */ }
+    menuData = empty;
+    renderRecipes(menuData);
+  }
+
+  function replaceMenu(data) {
+    clearSessionData();
+    localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
+    renderRecipes(data);
+  }
+
   fileInput.addEventListener("change", async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
-      renderRecipes(data);
+      if (!data || !Array.isArray(data.recipes)) {
+        throw new Error("JSON braucht ein \"recipes\"-Array.");
+      }
+      // Import always replaces the whole menu (hard reset of previous recipes).
+      replaceMenu(data);
+      fileInput.value = "";
     } catch (err) {
       alert("Die Datei ist kein gültiges JSON. Fehler: " + err.message);
     }
   });
 
   loadDemoBtn.addEventListener("click", async () => {
-    const res = await fetch("recipes.json");
+    const res = await fetch("recipes.json", { cache: "no-store" });
     const data = await res.json();
-    localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
-    renderRecipes(data);
+    replaceMenu(data);
+  });
+
+  document.getElementById("clearAllBtn").addEventListener("click", () => {
+    const n = (menuData.recipes || []).length;
+    const msg = n
+      ? `Wirklich alle ${n} Rezepte und den Koch-Fortschritt löschen?`
+      : "Gespeicherte Daten und Koch-Fortschritt wirklich löschen?";
+    if (!confirm(msg)) return;
+    clearAllRecipes();
   });
 
   exportBtn.addEventListener("click", async () => {
@@ -816,29 +856,26 @@
   window.addEventListener("hashchange", route);
 
   async function boot() {
-    async function fetchDemo() {
-      const res = await fetch("recipes.json", { cache: "no-store" });
-      if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json();
-      localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
-      return data;
-    }
-    function isStale(data) {
-      const recipes = (data && data.recipes) || [];
-      if (!recipes.length) return true;
-      const hasIng = recipes.some(r => (r.ingredients || []).length > 0);
-      const hasEq = ((data && data.equipment) || []).length > 0;
-      return !hasIng && !hasEq;
-    }
     try {
       let data = null;
       const saved = localStorage.getItem(STORAGE_RECIPES);
-      if (saved) {
+      if (saved != null) {
+        // Key present → respect it (including intentional empty after "Alle löschen").
         try { data = JSON.parse(saved); } catch (e) { data = null; }
-      }
-      if (!data || isStale(data)) {
-        try { data = await fetchDemo(); }
-        catch (e) { data = data || { recipes: [] }; }
+        if (!data || !Array.isArray(data.recipes)) data = { recipes: [] };
+      } else {
+        // First visit: seed with bundled demo.
+        try {
+          const res = await fetch("recipes.json", { cache: "no-store" });
+          if (res.ok) {
+            data = await res.json();
+            localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
+          } else {
+            data = { recipes: [] };
+          }
+        } catch (e) {
+          data = { recipes: [] };
+        }
       }
       renderRecipes(data);
     } catch (err) {

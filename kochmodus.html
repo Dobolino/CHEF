@@ -1137,33 +1137,28 @@ const Kochmodus = (function () {
   //  DATA LOADING
   // =====================================================================
   async function loadRecipes() {
-    function isStale(data) {
-      const recipes = (data && data.recipes) || [];
-      if (!recipes.length) return true;
-      const hasIng = recipes.some(r => (r.ingredients || []).length > 0);
-      const hasEq = ((data && data.equipment) || []).length > 0;
-      return !hasIng && !hasEq;
-    }
-    let fetched = null;
-    try {
-      const res = await fetch("recipes.json", { cache: "no-store" });
-      if (res.ok) fetched = await res.json();
-    } catch (e) { /* offline / file:// */ }
-
-    let saved = null;
+    // Prefer whatever the overview stored (import / demo / hard-delete empty menu).
     try {
       const raw = localStorage.getItem(STORAGE_RECIPES);
-      if (raw) saved = JSON.parse(raw);
+      if (raw != null) {
+        const saved = JSON.parse(raw);
+        if (saved && Array.isArray(saved.recipes)) return saved;
+      }
     } catch (e) {
       try { localStorage.removeItem(STORAGE_RECIPES); } catch (_) { /* ignore */ }
     }
 
-    // Prefer fresh file when local data is missing ingredients/equipment (old format).
-    const data = (fetched && (!saved || isStale(saved))) ? fetched : (fetched || saved);
-    if (data && fetched && isStale(saved || {})) {
-      try { localStorage.setItem(STORAGE_RECIPES, JSON.stringify(fetched)); } catch (e) { /* ignore */ }
-    }
-    return data;
+    // First visit only: seed from bundled demo.
+    try {
+      const res = await fetch("recipes.json", { cache: "no-store" });
+      if (res.ok) {
+        const fetched = await res.json();
+        try { localStorage.setItem(STORAGE_RECIPES, JSON.stringify(fetched)); } catch (e) { /* ignore */ }
+        return fetched;
+      }
+    } catch (e) { /* offline / file:// */ }
+
+    return { recipes: [] };
   }
 
   function menuSignature(data) {
