@@ -125,11 +125,17 @@
 
   .servings-bar {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    margin-bottom: 20px; max-width: 520px;
+    margin-bottom: 20px; max-width: 560px;
     background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
     padding: 14px 16px;
   }
+  .servings-bar .servings-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 180px; }
   .servings-bar span.label { font-weight: 600; font-size: 16px; }
+  .servings-bar .hint {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.02em;
+    color: var(--text-muted); line-height: 1.35;
+  }
+  .servings-bar .hint.scaled { color: var(--freeze); }
   .servings-bar .ctrl { display: flex; align-items: center; gap: 10px; margin-left: auto; }
   .servings-bar button {
     width: 56px; height: 56px; border-radius: 14px; border: 1px solid var(--line);
@@ -398,10 +404,13 @@
   </div>
 
   <div class="servings-bar" id="servingsBar">
-    <span class="label">Portionen (Makros skalieren)</span>
+    <div class="servings-copy">
+      <span class="label">Portionen</span>
+      <span class="hint" id="servingsHint">Rezeptbasis wird nach dem Laden angezeigt</span>
+    </div>
     <div class="ctrl">
       <button type="button" id="servingsMinus" aria-label="Weniger">−</button>
-      <span class="val" id="servingsVal">5</span>
+      <span class="val" id="servingsVal">–</span>
       <button type="button" id="servingsPlus" aria-label="Mehr">+</button>
     </div>
   </div>
@@ -462,8 +471,72 @@
   const promptPreview = document.getElementById("promptPreview");
   const promptStatus = document.getElementById("promptStatus");
   let menuData = { recipes: [] };
+  let baseServings = 5;
   let targetServings = 5;
+  let menuSig = "";
   let promptText = "";
+
+  function menuSignature(data) {
+    const ids = ((data && data.recipes) || []).slice(0, 2).map(r => r.id || r.name || "?").join("+");
+    return `${(data && data.week) || "?"}|${ids}`;
+  }
+
+  /** Shared batch size declared in the JSON (both recipes should match). */
+  function menuBaseServings(data) {
+    const recipes = (data && data.recipes) || [];
+    const vals = recipes
+      .map(r => Number(r && r.servings))
+      .filter(n => Number.isFinite(n) && n >= 1 && n <= 24)
+      .map(n => Math.round(n));
+    if (!vals.length) return 5;
+    return vals[0];
+  }
+
+  function clampServings(n, fallback) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return fallback;
+    return Math.max(1, Math.min(24, Math.round(v)));
+  }
+
+  function readServings(sig, fallback) {
+    try {
+      const raw = localStorage.getItem(STORAGE_SERVINGS);
+      if (raw == null || raw === "") return fallback;
+      if (raw.charAt(0) === "{") {
+        const o = JSON.parse(raw);
+        if (o && o.sig === sig) return clampServings(o.n, fallback);
+        return fallback; // anderes Menü → Rezeptbasis, nicht die alte 5
+      }
+      // Legacy: bare number without menu binding — ignore if it disagrees with base
+      const legacy = clampServings(raw, NaN);
+      if (!Number.isFinite(legacy)) return fallback;
+      return legacy === fallback ? legacy : fallback;
+    } catch (e) { /* ignore */ }
+    return fallback;
+  }
+
+  function saveServings() {
+    try {
+      localStorage.setItem(STORAGE_SERVINGS, JSON.stringify({ sig: menuSig, n: targetServings }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function updateServingsHint() {
+    const hint = document.getElementById("servingsHint");
+    if (!hint) return;
+    if (!(menuData.recipes || []).length) {
+      hint.textContent = "Kein Menü geladen";
+      hint.classList.remove("scaled");
+      return;
+    }
+    if (targetServings === baseServings) {
+      hint.textContent = `wie im Rezept (Basis ${baseServings})`;
+      hint.classList.remove("scaled");
+    } else {
+      hint.textContent = `Rezeptbasis ${baseServings} · skaliert auf ${targetServings}`;
+      hint.classList.add("scaled");
+    }
+  }
 
   async function ensurePromptLoaded() {
     if (promptText) return promptText;
@@ -515,18 +588,6 @@
     return String(n).replace(".", ",");
   }
 
-  function readServings(fallback) {
-    try {
-      const n = Number(localStorage.getItem(STORAGE_SERVINGS));
-      if (Number.isFinite(n) && n >= 1 && n <= 24) return Math.round(n);
-    } catch (e) { /* ignore */ }
-    return fallback;
-  }
-
-  function saveServings() {
-    try { localStorage.setItem(STORAGE_SERVINGS, String(targetServings)); } catch (e) { /* ignore */ }
-  }
-
   function normalizeIngKey(ing) {
     const name = String(ing.name || "").toLowerCase()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
@@ -564,9 +625,15 @@
     grid.innerHTML = "";
     weekLabel.textContent = data.week ? `Woche ${data.week}` : "";
 
-    const base = (data.recipes && data.recipes[0] && data.recipes[0].servings) || 5;
-    targetServings = readServings(base);
-    document.getElementById("servingsVal").textContent = String(targetServings);
+    menuSig = menuSignature(menuData);
+    baseServings = menuBaseServings(menuData);
+    targetServings = (menuData.recipes || []).length
+      ? readServings(menuSig, baseServings)
+      : baseServings;
+    document.getElementById("servingsVal").textContent =
+      (menuData.recipes || []).length ? String(targetServings) : "–";
+    updateServingsHint();
+    if ((menuData.recipes || []).length) saveServings();
 
     const noteBox = document.getElementById("weekNoteBox");
     if (data.weekNote) {
@@ -585,8 +652,7 @@
     data.recipes.forEach((recipe, index) => {
       const accentClass = ACCENT_CLASSES[index % ACCENT_CLASSES.length];
       const macros = recipe.macrosPerServing || {};
-      const from = Number(recipe.servings) || base;
-      const factor = targetServings / from;
+      const from = Number(recipe.servings) || baseServings;
       // Per-serving macros stay the same; show batch totals for the scaled week.
       const batch = {
         kcal: macros.kcal != null ? Math.round(macros.kcal * targetServings) : null,
@@ -600,6 +666,10 @@
         .map(note => `<div class="note">${escapeHtml(note)}</div>`)
         .join("");
 
+      const servingsLabel = targetServings === from
+        ? `${targetServings} Portionen`
+        : `${targetServings} Port. · Basis ${from}`;
+
       const ticket = document.createElement("div");
       ticket.className = `ticket ${accentClass}`;
       ticket.innerHTML = `
@@ -610,7 +680,7 @@
             <span class="label-tag">Rezept ${String.fromCharCode(65 + index)}</span>
             ${recipe.freezable ? `<div class="freeze-badge">${freezeIcon()} Einfrierbar</div>` : ""}
           </div>
-          <div class="servings">${targetServings} Portionen</div>
+          <div class="servings">${servingsLabel}</div>
         </div>
         <div class="perforation"></div>
         <div class="macros-hint">pro Portion · Summe ${targetServings}× darunter</div>
@@ -659,7 +729,7 @@
       return;
     }
 
-    const base = Number(recipes[0].servings) || 5;
+    const base = baseServings;
     const checks = loadMiseChecks();
     const equipment = menuData.equipment || [];
     const merged = mergedIngredients(recipes);
@@ -676,7 +746,10 @@
       return;
     }
 
-    let html = `<div class="mise-intro"><strong>${merged.length} Zutaten</strong> · ${equipment.length} Geräte — abhaken, was schon bereitsteht. Mengen gelten für <strong>${targetServings} Portionen</strong>.</div>`;
+    const portHint = targetServings === base
+      ? `<strong>${targetServings} Portionen</strong> (wie im Rezept)`
+      : `<strong>${targetServings} Portionen</strong> (Rezeptbasis ${base})`;
+    let html = `<div class="mise-intro"><strong>${merged.length} Zutaten</strong> · ${equipment.length} Geräte — abhaken, was schon bereitsteht. Mengen gelten für ${portHint}.</div>`;
 
     if (equipment.length) {
       html += `<div class="mise-block"><h2>Geräte & Werkzeug</h2>`;
@@ -767,13 +840,24 @@
     // Keep an explicit empty menu so boot/cook do not auto-reload the demo.
     const empty = { recipes: [] };
     try { localStorage.setItem(STORAGE_RECIPES, JSON.stringify(empty)); } catch (e) { /* ignore */ }
+    try { localStorage.removeItem(STORAGE_SERVINGS); } catch (e) { /* ignore */ }
     menuData = empty;
+    menuSig = "";
+    baseServings = 5;
+    targetServings = 5;
     renderRecipes(menuData);
   }
 
   function replaceMenu(data) {
     clearSessionData();
     localStorage.setItem(STORAGE_RECIPES, JSON.stringify(data));
+    // Import/Demo: always start at the recipe's declared servings (not an old 5).
+    menuSig = menuSignature(data);
+    baseServings = menuBaseServings(data);
+    targetServings = baseServings;
+    try {
+      localStorage.setItem(STORAGE_SERVINGS, JSON.stringify({ sig: menuSig, n: targetServings }));
+    } catch (e) { /* ignore */ }
     renderRecipes(data);
   }
 

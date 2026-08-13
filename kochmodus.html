@@ -105,10 +105,15 @@
 
   .servings-card {
     background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
-    padding: 14px 16px; margin-bottom: 20px; max-width: 420px;
+    padding: 14px 16px; margin-bottom: 20px; max-width: 480px;
     display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
+  .servings-card .servings-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .servings-card label { font-weight: 600; font-size: 15px; }
+  .servings-card .hint {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-muted); line-height: 1.35;
+  }
+  .servings-card .hint.scaled { color: var(--freeze); }
   .servings-ctrl { display: flex; align-items: center; gap: 8px; }
   .servings-ctrl button {
     width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--line);
@@ -573,10 +578,13 @@
   <div id="deviceWarn"></div>
 
   <div class="servings-card" id="servingsCard">
-    <label for="servingsVal">Portionen</label>
+    <div class="servings-copy">
+      <label for="servingsVal">Portionen</label>
+      <span class="hint" id="servingsHint">Rezeptbasis wird geladen …</span>
+    </div>
     <div class="servings-ctrl">
       <button type="button" id="servingsMinus" aria-label="Weniger Portionen">−</button>
-      <span class="val" id="servingsVal" aria-live="polite">5</span>
+      <span class="val" id="servingsVal" aria-live="polite">–</span>
       <button type="button" id="servingsPlus" aria-label="Mehr Portionen">+</button>
     </div>
   </div>
@@ -1166,13 +1174,54 @@ const Kochmodus = (function () {
     return `${data.week || "?"}|${ids}`;
   }
 
-  function readStoredServings(fallback) {
+  function menuBaseServings(data) {
+    const recipes = (data && data.recipes) || [];
+    const vals = recipes
+      .map(r => Number(r && r.servings))
+      .filter(n => Number.isFinite(n) && n >= 1 && n <= 24)
+      .map(n => Math.round(n));
+    if (!vals.length) return 5;
+    return vals[0];
+  }
+
+  function clampServings(n, fallback) {
+    const v = Number(n);
+    if (!Number.isFinite(v)) return fallback;
+    return Math.max(1, Math.min(24, Math.round(v)));
+  }
+
+  function readStoredServings(sig, fallback) {
     try {
       const raw = localStorage.getItem(STORAGE_SERVINGS);
-      const n = raw != null ? Number(raw) : NaN;
-      if (Number.isFinite(n) && n >= 1 && n <= 24) return Math.round(n);
+      if (raw == null || raw === "") return fallback;
+      if (raw.charAt(0) === "{") {
+        const o = JSON.parse(raw);
+        if (o && o.sig === sig) return clampServings(o.n, fallback);
+        return fallback;
+      }
+      const legacy = clampServings(raw, NaN);
+      if (!Number.isFinite(legacy)) return fallback;
+      return legacy === fallback ? legacy : fallback;
     } catch (e) { /* ignore */ }
     return fallback;
+  }
+
+  function persistServings() {
+    try {
+      localStorage.setItem(STORAGE_SERVINGS, JSON.stringify({ sig, n: targetServings }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function updateServingsHint() {
+    const el = $("servingsHint");
+    if (!el) return;
+    if (targetServings === baseServings) {
+      el.textContent = `wie im Rezept (Basis ${baseServings})`;
+      el.classList.remove("scaled");
+    } else {
+      el.textContent = `Rezeptbasis ${baseServings} · skaliert auf ${targetServings}`;
+      el.classList.add("scaled");
+    }
   }
 
   // =====================================================================
@@ -1204,7 +1253,7 @@ const Kochmodus = (function () {
     if (!state) return;
     try {
       localStorage.setItem(STORAGE_STATE, JSON.stringify(state));
-      localStorage.setItem(STORAGE_SERVINGS, String(targetServings));
+      persistServings();
     } catch (e) { /* quota / private mode */ }
   }
 
@@ -1999,6 +2048,7 @@ const Kochmodus = (function () {
   function renderStartScreen(data, totalMinutes, deviceNeeds) {
     $("weekLabel").textContent = data.week ? `Woche ${data.week}` : "";
     $("servingsVal").textContent = String(targetServings);
+    updateServingsHint();
     const prepCount = pages.filter(p => p.type === "prep").length;
     const ingCount = pages.filter(p => p.type === "ingredients").length;
     const eqCount = pages.filter(p => p.type === "equipment").length;
@@ -2063,10 +2113,12 @@ const Kochmodus = (function () {
 
   function changeServings(delta) {
     targetServings = Math.max(1, Math.min(24, targetServings + delta));
-    try { localStorage.setItem(STORAGE_SERVINGS, String(targetServings)); } catch (e) { /* ignore */ }
+    persistServings();
+    if (state) {
+      state.targetServings = targetServings;
+      saveState();
+    }
     // Re-render start plan with scaled quantities (scheduler unchanged).
-    const data = { week: $("weekLabel").textContent.replace(/^Woche\s+/, "") || undefined, recipes };
-    // Prefer original week from signature
     const week = (sig.split("|")[0] !== "?" ? sig.split("|")[0] : "");
     renderStartScreen({ week, recipes }, plannedCookMinutes, detectDeviceNeeds(recipes));
   }
@@ -2105,9 +2157,10 @@ const Kochmodus = (function () {
 
     recipes = data.recipes.slice(0, 2);
     menuData = data;
-    baseServings = Number(recipes[0].servings) || 5;
-    targetServings = readStoredServings(baseServings);
     sig = menuSignature(data);
+    baseServings = menuBaseServings(data);
+    targetServings = readStoredServings(sig, baseServings);
+    persistServings();
 
     const built = buildSequence(recipes);
     plannedCookMinutes = built.totalMinutes;

@@ -1,5 +1,5 @@
 /* Batch Cooking — minimal offline cache (HTML/JSON/icons/manifest). */
-const CACHE = "batchcooking-v3";
+const CACHE = "batchcooking-v4";
 const ASSETS = [
   "./",
   "./index.html",
