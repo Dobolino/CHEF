@@ -333,6 +333,39 @@ with sync_playwright() as p:
             goto(page,'cook');page.locator('[data-action="start-task"]').click();page.screenshot(path=str(OUT/'cooking-focus-ipad.png'))
         context.close()
     ok('Five mobile/tablet viewport sizes: five views fit and buttons have at least 44px targets')
+    for profile,agent,platform in [
+        ('ipad-mobile','Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1','iPad'),
+        ('ipad-desktop','Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1','MacIntel')
+    ]:
+        context=browser.new_context(viewport={'width':1280,'height':882},is_mobile=True,has_touch=True,user_agent=agent)
+        context.add_init_script(f"Object.defineProperty(navigator,'platform',{{get:()=>{json.dumps(platform)}}});Object.defineProperty(navigator,'maxTouchPoints',{{get:()=>5}});")
+        page=context.new_page();page.on('pageerror',lambda error:results['page_errors'].append(str(error)))
+        for route in ['overview','cook']:
+            goto(page,route)
+            geometry=page.evaluate('''() => {
+              const links=[...document.querySelectorAll('.navigation a')].filter(e=>e.getClientRects().length);
+              return {top:Math.min(...links.map(e=>e.getBoundingClientRect().top)),
+                reachable:links.every(e=>{const r=e.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('a')===e;})};
+            }''')
+            assert geometry['top']>=64 and geometry['reachable'],(profile,route,geometry)
+        page.locator('[data-action="start-task"]').click()
+        for width,height in [(1280,882),(768,1024),(844,390)]:
+            page.set_viewport_size({'width':width,'height':height})
+            page.mouse.move(30,80);page.mouse.wheel(0,-500)
+            geometry=page.evaluate('''() => {
+              const action=document.querySelector('.cook-primary').getBoundingClientRect();
+              const nav=document.querySelector('.nav-cook').getBoundingClientRect();
+              const header=document.querySelector('.topbar').getBoundingClientRect();
+              return {top:nav.top,scroll:scrollY,timerTop:document.querySelector('#timerRail').getBoundingClientRect().top,headerBottom:header.bottom,
+                actionVisible:action.top>=0&&action.bottom<=innerHeight,
+                actionReachable:document.elementFromPoint(action.x+action.width/2,action.y+action.height/2)?.closest('button')?.classList.contains('cook-primary')};
+            }''')
+            assert geometry['top']>=64 and geometry['scroll']==0 and geometry['timerTop']>=geometry['headerBottom']-1, (profile,width,height,geometry)
+            assert geometry['actionVisible'] and geometry['actionReachable'],(profile,width,height,geometry)
+            if profile=='ipad-desktop' and width==1280:
+                page.screenshot(path=str(OUT/'ipad-status-clearance.png'))
+        context.close()
+    ok('iPad mobile and desktop identifiers keep controls below status-bar blur even with zero reported safe inset and after rotation')
     browser.close()
 
 assert not results['page_errors'],results['page_errors']

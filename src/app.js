@@ -9,6 +9,7 @@ import * as views from './ui/views.js';
 import * as browser from './platform/browser.js';
 
 const $ = id => document.getElementById(id);
+browser.configureDeviceInsets();
 browser.lockTouchZoom();
 const header = document.querySelector('.topbar');
 const stickySizes = new ResizeObserver(() => {
@@ -76,6 +77,7 @@ function render() {
   document.body.dataset.view = page;
   const focusCooking = page === 'cook' && graph && !store.loadError && !isComplete(graph, current.session);
   document.body.dataset.cooking = focusCooking ? 'focus' : '';
+  document.documentElement.dataset.cooking = focusCooking ? 'focus' : '';
   if (!focusCooking && $('cookStepsDialog').open) $('cookStepsDialog').close();
   if (page === 'cook' && graph && !graph.byId.has(selectedTaskId)) selectedTaskId = currentTask()?.id;
   const focus = document.activeElement;

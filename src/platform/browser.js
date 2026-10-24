@@ -1,4 +1,9 @@
 let audio = null, wakeLock = null, wakeRequest = null, wakeWanted = false, speaking = false;
+export function configureDeviceInsets() {
+  // iPadOS can use a Mac user agent while its status-bar blur extends past a zero safe-area inset.
+  const touchMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  document.documentElement.dataset.ipad = String(/iPad/.test(navigator.userAgent) || touchMac);
+}
 export function lockTouchZoom() {
   // Safari can ignore user-scalable=no. Keep one-finger scrolling and swipes.
   const prevent = event => { if (event.cancelable) event.preventDefault(); };

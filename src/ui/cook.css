@@ -1,4 +1,8 @@
 /* The cooking workspace fits the screen; only its instruction and step list scroll. */
+html[data-cooking="focus"] {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
 body[data-cooking="focus"] {
   height: 100dvh;
   overflow: hidden;
@@ -16,7 +20,7 @@ body[data-cooking="focus"] .topbar {
   grid-template-columns: minmax(0, 1fr) auto;
   min-height: 0;
   gap: 12px;
-  padding: calc(var(--safe-top) + 10px) 0 10px;
+  padding: max(var(--status-clearance), calc(var(--safe-top) + 10px)) 0 10px;
 }
 body[data-cooking="focus"] .brand,
 body[data-cooking="focus"] .footer,
