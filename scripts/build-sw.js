@@ -9,7 +9,7 @@ async function files(directory) {
   }
   return result;
 }
-const assets = ['index.html', 'kochmodus.html', 'recipes.json', 'manifest.json', 'icon.svg', 'PROMPT_RECIPES.md',
+const assets = ['index.html', 'kochmodus.html', 'recipes.json', 'manifest.json', 'icon.svg', 'apple-touch-icon.png', 'PROMPT_RECIPES.md',
   ...await files('src/'), ...await files('icons/'), ...await files('schemas/')].sort();
 const hash = createHash('sha256');
 for (const asset of assets) { hash.update(asset); hash.update(await fs.readFile(new URL(asset, root))); }
