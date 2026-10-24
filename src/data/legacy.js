@@ -26,8 +26,8 @@ function quantity(amount, sourceUnit) {
 }
 export function migrateLegacy(source) {
   if (!source || !Array.isArray(source.recipes) || source.recipes.length > 32) throw new Error('Ein Menü braucht eine recipes-Liste mit höchstens 32 Rezepten.');
-  const warnings = ['Altformat übernommen: Abhängigkeiten sind konservativ. Fehlende Vorbereitungszeiten bitte ergänzen.',
-    'Küchenausstattung prüfen. Mengen stehen skaliert an den Schritten; Originaltexte werden nicht per Textersetzung verändert.'];
+  const warnings = ['Altformat übernommen. Handarbeit ohne Zeitvorgabe wird mit „Erledigt“ bestätigt; vorhandene Koch- und Backtimer bleiben erhalten.',
+    'Der Ablauf nutzt eine Standardküche. Mengen stehen skaliert an den Schritten; Originaltexte bleiben erhalten.'];
   const foods = new Map();
   const recipes = source.recipes.map((old, ri) => {
     if (!old || typeof old !== 'object' || typeof old.id !== 'string' || typeof old.name !== 'string') throw new Error(`Rezept ${ri + 1}: ID und Name fehlen.`);

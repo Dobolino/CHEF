@@ -10,11 +10,20 @@ test('curated three-recipe demo is valid and ready', () => {
   const v = importMenu(fs.readFileSync(new URL('../recipes.json', import.meta.url), 'utf8'));
   assert.equal(v.document.recipes.length, 3); assert.deepEqual(v.errors, []); assert.deepEqual(v.blockers, []);
 });
-test('legacy import preserves amounts and marks missing prep times', () => {
+test('legacy import preserves amounts and allows manual prep without inventing recipe times', () => {
   const v = importMenu(fs.readFileSync(new URL('../examples/legacy-menu.json', import.meta.url), 'utf8'));
-  assert.deepEqual(v.errors, []); assert.ok(v.blockers.some(b => b.code === 'UNKNOWN_DURATION'));
+  assert.deepEqual(v.errors, []); assert.deepEqual(v.blockers, []);
+  assert.ok(v.warnings.some(b => b.code === 'UNTIMED_ACTIVE'));
   assert.equal(v.document.recipes[0].ingredients[0].quantity.value, 750);
   assert.equal(v.document.recipes[0].tasks.find(t => t.id === 'hb-mep-1').duration, null);
+});
+test('unknown active times can run manually, while passive cooking times still block', () => {
+  const d = menu([recipe('a', [task('one', 1)])]);
+  d.recipes[0].tasks[0].duration = null;
+  assert.equal(validateDocument(d).blockers.length, 0);
+  assert.ok(validateDocument(d).warnings.some(e => e.code === 'UNTIMED_ACTIVE'));
+  d.recipes[0].tasks[0].mode = 'passive';
+  assert.ok(validateDocument(d).blockers.some(e => e.code === 'UNKNOWN_DURATION'));
 });
 test('unknown versions, duplicate keys and malformed JSON are rejected', () => {
   for (const json of ['{"a":1,"a":2}', '{"a":1,"\\u0061":2}', '{"a":NaN}', '{"a":1e400}', '[1,]', '01', '\u00a0{}', '{"a":truefalse}']) assert.throws(() => parseJSON(json), json);

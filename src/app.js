@@ -9,6 +9,13 @@ import * as views from './ui/views.js';
 import * as browser from './platform/browser.js';
 
 const $ = id => document.getElementById(id);
+browser.lockTouchZoom();
+const header = document.querySelector('.topbar');
+const stickySizes = new ResizeObserver(() => {
+  document.documentElement.style.setProperty('--header-height', `${header.getBoundingClientRect().height}px`);
+  document.documentElement.style.setProperty('--timer-height', `${$('timerRail').getBoundingClientRect().height}px`);
+});
+stickySizes.observe(header); stickySizes.observe($('timerRail'));
 let store;
 try { store = createStore(localStorage); } catch { store = createStore({ getItem() { throw new Error('Browserspeicher ist nicht zugänglich.'); } }); }
 let graph = null, forecast = null, graphSignature = '', validation = { errors: [], blockers: [], warnings: [] }, planError = '', graphError = '';
@@ -17,7 +24,7 @@ let alarmInterval = null, registration = null, lastForecastAt = 0, speech = null
 const railNodes = new Map();
 const route = () => {
   const value = location.hash.slice(1).split('/')[0];
-  return ({ mise: 'prep', overview: 'overview', shopping: 'shopping', prep: 'prep', cook: 'cook', archive: 'archive', plan: 'plan', finish: 'finish' })[value] || 'overview';
+  return ({ mise: 'prep', overview: 'overview', shopping: 'prep', prep: 'prep', cook: 'cook', archive: 'archive', plan: 'plan', finish: 'finish' })[value] || 'overview';
 };
 function navigate(next) {
   browser.stopSpeaking();
@@ -76,9 +83,8 @@ function render() {
     $('viewRoot').innerHTML = `<div class="error"><h1>Gespeicherte Daten brauchen Aufmerksamkeit.</h1><p>${views.esc(store.loadError)}</p><p>Der gespeicherte Stand wurde nicht überschrieben. Sichere ihn vor einer Wiederherstellung.</p><div class="actions">${button('raw-backup', 'Gespeicherte Daten sichern')}${button('repair-storage', 'Wiederherstellung öffnen')}</div></div>`;
   } else if (page === 'archive') $('viewRoot').innerHTML = views.archiveView(store.state);
   else if (!current) $('viewRoot').innerHTML = views.emptyMenu();
-  else if (page === 'shopping') $('viewRoot').innerHTML = views.shoppingView(current);
   else if (page === 'prep') $('viewRoot').innerHTML = views.prepView(current, graph, forecast, validation);
-  else if (page === 'cook') $('viewRoot').innerHTML = views.cookView(current, graph, forecast, selectedTaskId, browser.voiceAvailable());
+  else if (page === 'cook') $('viewRoot').innerHTML = views.cookView(current, graph, forecast, selectedTaskId, browser.voiceAvailable(), validation);
   else if (page === 'plan') $('viewRoot').innerHTML = views.planView(current, graph, forecast, planError);
   else if (page === 'finish') $('viewRoot').innerHTML = views.finishView(current, graph);
   else $('viewRoot').innerHTML = views.menuView(current, graph, forecast, validation);
@@ -87,7 +93,7 @@ function render() {
   }
   for (const index of openDetails) { const d = $('viewRoot').querySelectorAll('details')[index]; if (d) d.open = true; }
   for (const a of document.querySelectorAll('.navigation a')) a.setAttribute('aria-current', a.hash === `#${page === 'plan' ? 'cook' : page === 'finish' ? 'cook' : page}` ? 'page' : 'false');
-  document.title = `CHEF · ${({ overview: 'Wochenmenü', shopping: 'Einkauf', prep: 'Vorbereiten', cook: 'Kochen', archive: 'Archiv', plan: 'Ablaufplan', finish: 'Portionieren' })[page]}`;
+  document.title = `CHEF · ${({ overview: 'Wochenmenü', prep: 'Vorbereiten', cook: 'Kochen', archive: 'Archiv', plan: 'Ablaufplan', finish: 'Portionieren' })[page]}`;
   // Preserve explicit controls after state changes, never steal focus from a dialog.
   if (!$('confirmDialog').open && !$('alarmDialog').open && focus?.closest('#viewRoot')) {
     let target = focusId ? document.getElementById(focusId) : null;
@@ -181,14 +187,8 @@ function updateWake() {
   if (active && document.visibilityState === 'visible') void browser.keepAwake(message => { $('wakeStatus').textContent = message; });
   else { void browser.releaseWake(); $('wakeStatus').textContent = ''; }
 }
-function suppliesReady() {
-  const c = store.state.current;
-  return shoppingList(c.document).every(i => c.checks.ready[i.key]) && c.document.kitchen.resources.every(r => c.checks.equipment[r.id]);
-}
 async function startTask(id) {
   if (!graph) throw new Error('Zuerst fehlende Angaben ergänzen.');
-  if (!suppliesReady() && !await confirm('Alles bereitgestellt?', 'Prüfe die benötigten Zutaten und Geräte. Du kannst sie in der Vorbereitung abhaken oder bestätigen, dass alles bereitsteht.', 'Alles steht bereit')) return;
-  if (!suppliesReady()) markAllReady();
   browser.unlockAudio(); selectedTaskId = id; act({ type: 'START', id });
 }
 function markAllReady() {
@@ -252,23 +252,6 @@ $('fileInput').addEventListener('change', event => guarded(async () => {
   } else previewText(text);
 }));
 $('validateEditor').addEventListener('click', () => { $('editorDialog').close(); previewText($('jsonEditor').value); });
-$('kitchenForm').addEventListener('submit', event => {
-  event.preventDefault(); void guarded(() => {
-    const values = Object.fromEntries(new FormData(event.target));
-    store.changeDocument(doc => {
-      const resources = [];
-      for (const kind of ['pot', 'pan', 'hob', 'oven', 'tray', 'board', 'knife', 'worktop']) for (let i = 1; i <= Number(values[kind]); i++) {
-        const id = `${kind}-${i}`;
-        resources.push({ id, kind, name: ({ pot: 'Topf', pan: 'Pfanne', hob: 'Herdplatte', oven: 'Ofen', tray: 'Blech', board: 'Brett', knife: 'Messer', worktop: 'Arbeitsplatz' })[kind] + ` ${i}`,
-          capacity: kind === 'oven' ? Number(values.ovenSlots) : 1,
-          ...(kind === 'pot' ? { volumeMl: Math.round(Number(values.potLitres) * 1000) } : {}),
-          ...(kind === 'oven' ? { supportedModes: ['fan', 'topBottom'] } : {}) });
-      }
-      doc.kitchen = { cooks: Number(values.cooks), cleaningSeconds: Math.round(Number(values.cleaning) * 60), resources };
-    });
-    $('kitchenDialog').close(); toast('Küche gespeichert. Der Ablauf wird neu berechnet.');
-  });
-});
 document.addEventListener('click', event => {
   const closer = event.target.closest('[data-close]'); if (closer) { $(closer.dataset.close).close(); syncAlarm(); return; }
   const routeButton = event.target.closest('[data-route]'); if (routeButton) { navigate(routeButton.dataset.route); return; }
@@ -298,9 +281,16 @@ document.addEventListener('click', event => {
       case 'clear': if (await confirm('Menü archivieren?', 'Das aktuelle Menü und sein Fortschritt bleiben im Archiv erhalten. Archivierte Timer lösen keine Alarme aus; laufende Kochvorgänge vorher beenden.', 'Archivieren')) { store.clearCurrent(); navigate('overview'); } break;
       case 'restart': if (await confirm('Neuen Kochabend beginnen?', 'Der aktuelle Stand samt Timer-Endzeiten wird archiviert. Archivierte Timer lösen keine Alarme aus; laufende Kochvorgänge vorher beenden. Der neue Kochabend beginnt bei null.', 'Archivieren & neu starten')) { store.startAgain(); selectedTaskId = null; navigate('overview'); } break;
       case 'portion': store.changeDocument(doc => { const item = doc.selection.find(s => s.recipeId === id); item.servings = Math.max(1, Math.min(100, item.servings + Number(target.dataset.delta))); }); break;
-      case 'kitchen':
-        if (hasProgress(store.state.current.session)) throw new Error('Geräte sind an den begonnenen Kochvorgang gebunden. Für Änderungen einen neuen Kochabend starten.');
-        $('kitchenForm').innerHTML = views.kitchenFields(store.state.current.document.kitchen); $('kitchenDialog').showModal(); break;
+      case 'show-missing': {
+        if (route() !== 'overview') {
+          const changed = new Promise(resolve => window.addEventListener('hashchange', resolve, { once: true }));
+          navigate('overview'); await changed;
+        } else render();
+        const field = document.querySelector('[data-required-time]');
+        if (field) { field.closest('details').open = true; field.scrollIntoView({ block: 'center' }); field.focus({ preventScroll: true }); }
+        else { $('jsonEditor').value = JSON.stringify(store.state.current.document, null, 2); $('editorDialog').showModal(); }
+        break;
+      }
       case 'all-ready': markAllReady(); toast('Zutaten und Geräte als bereit bestätigt.'); break;
       case 'start-task': await startTask(id); break;
       case 'complete-task': await completeTask(id); break;
@@ -319,12 +309,6 @@ document.addEventListener('click', event => {
           else if (/^(eine minute mehr|timer plus eine minute)$/.test(command)) act({ type: 'ADJUST', id, seconds: 60 });
           else toast('Nicht erkannt. Nutze die Tasten oder einen angezeigten Befehl.');
         }), message => { speech = null; if (message) toast(message, true); }); toast('Mikrofon aktiv. Jetzt einen Befehl sprechen.'); break;
-      case 'share-shopping': {
-        const text = 'CHEF · Einkaufsliste\n\n' + views.shoppingItems(store.state.current).filter(i => !i.checked).map(i => `${i.needed == null ? formatQuantity(i.quantity) : formatQuantity({ ...i.quantity, value: i.needed })} ${i.name}`).join('\n');
-        await browser.shareText(text); toast('Einkaufsliste geteilt, kopiert oder heruntergeladen.'); break;
-      }
-      case 'print': window.print(); break;
-      case 'reset-shopping': if (await confirm('Einkaufshäkchen zurücksetzen?', 'Deine eingetragenen Vorratsmengen bleiben erhalten.', 'Zurücksetzen')) store.commit(next => { next.current.checks.bought = {}; }); break;
       case 'favorite': store.commit(next => { const entry = next.archive.find(a => a.id === id); entry.favorite = !entry.favorite; }); break;
       case 'restore-archive': if (await confirm('Gespeicherten Stand fortsetzen?', 'Timer behalten ihre absoluten Endzeiten. Der aktuelle Stand wird ins Archiv getauscht und dort nicht weiter überwacht. Laufende Kochvorgänge vorher beenden.', 'Wiederherstellen')) { store.restore(id); navigate('overview'); } break;
       case 'reuse-archive': if (await confirm('Als neuen Kochabend laden?', 'Rezepte und Portionen werden übernommen. Der aktuelle Stand wird archiviert; seine Timer lösen dort keine Alarme mehr aus. Laufende Kochvorgänge vorher beenden.', 'Neu laden')) { store.activate(store.state.archive.find(a => a.id === id).snapshot.document); navigate('overview'); } break;
@@ -356,17 +340,12 @@ document.addEventListener('change', event => {
     });
     else if (target.dataset.taskTime) store.changeDocument(doc => {
       const task = doc.recipes.find(r => r.id === target.dataset.recipe).tasks.find(t => t.id === target.dataset.taskTime);
+      if (!target.value && task.mode === 'active') { task.duration = null; return; }
       const seconds = Math.round(Number(target.value) * 60);
       if (!target.value || seconds < 1 || seconds > 86400) throw new Error('Eine Zeit zwischen einer Sekunde und 24 Stunden angeben.');
       task.duration = { ...(task.duration || { scaling: 'fixed' }), seconds };
     });
-    else if (target.dataset.bought) {
-      const item = views.shoppingItems(store.state.current).find(i => i.key === target.dataset.bought);
-      store.commit(next => { if (target.checked) next.current.checks.bought[item.key] = item.needed ?? true; else delete next.current.checks.bought[item.key]; });
-    } else if (target.dataset.pantry) {
-      const value = Number(target.value); if (!Number.isFinite(value) || value < 0 || value > 1000000) throw new Error('Vorrat als positive Menge oder null angeben.');
-      store.commit(next => { next.current.checks.pantry[target.dataset.pantry] = value; });
-    } else if (target.dataset.ready) store.commit(next => { next.current.checks.ready[target.dataset.ready] = target.checked; });
+    else if (target.dataset.ready) store.commit(next => { next.current.checks.ready[target.dataset.ready] = target.checked; });
     else if (target.dataset.equipment) store.commit(next => { next.current.checks.equipment[target.dataset.equipment] = target.checked; });
     else if (target.hasAttribute('data-session-note')) act({ type: 'NOTE', value: target.value });
     else if (target.dataset.packMass) {
@@ -390,7 +369,7 @@ document.addEventListener('keydown', event => {
   selectedTaskId = list[Math.max(0, Math.min(list.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)))]; render();
 });
 let touch = null;
-$('viewRoot').addEventListener('touchstart', event => { if (route() === 'cook' && !event.target.closest('button,input,textarea,select,a,summary')) touch = { x: event.touches[0].clientX, y: event.touches[0].clientY }; else touch = null; }, { passive: true });
+$('viewRoot').addEventListener('touchstart', event => { if (event.touches.length === 1 && route() === 'cook' && !event.target.closest('button,input,textarea,select,a,summary')) touch = { x: event.touches[0].clientX, y: event.touches[0].clientY }; else touch = null; }, { passive: true });
 $('viewRoot').addEventListener('touchend', event => {
   if (!touch || !graph || document.querySelector('dialog[open]')) return;
   const dx = event.changedTouches[0].clientX - touch.x, dy = event.changedTouches[0].clientY - touch.y; touch = null;
@@ -439,7 +418,7 @@ async function boot() {
       store.activate(result.document);
     } catch (error) { toast(error.message, true); }
   }
-  render(); tick(); if (store.migrated) toast('Altversion gesichert und übernommen. Fehlende Zeiten im Menü ergänzen; übernommene Timer bleiben sichtbar.');
+  render(); tick(); if (store.migrated) toast('Rezepte und Fortschritt übernommen. Du kannst direkt kochen; Handarbeit ohne Zeit bestätigst du selbst.');
   setInterval(tick, 1000); await registerWorker();
 }
 void boot();

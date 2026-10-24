@@ -48,7 +48,7 @@ test('legacy partial amounts inherit canonical units without losing the original
   const task = result.document.recipes[0].tasks.find(t => t.id === 'hb-s1');
   assert.equal(task.uses[2].quantity.unit, 'tsp'); assert.equal(task.sourceText, old.recipes[0].steps[0].text);
 });
-test('old storage keys and timer deadlines survive migration without an assumed new plan', () => {
+test('old storage keys and timer deadlines survive migration with manually confirmed prep', () => {
   const storage = memoryStorage();
   const source = fs.readFileSync(new URL('../examples/legacy-menu.json', import.meta.url), 'utf8'), old = JSON.parse(source);
   storage.setItem('batchcooking_recipes', source);
@@ -59,7 +59,8 @@ test('old storage keys and timer deadlines survive migration without an assumed 
   assert.equal(store.loadError, null); assert.equal(store.state.current.session.legacyTimers['hb-s1'].endsAt, deadline);
   assert.equal(store.state.current.legacyProgress.checked['hb-mep-1'], true);
   assert.equal(storage.getItem('batchcooking_cook_state'), progress);
-  assert.ok(validateDocument(store.state.current.document).blockers.length);
+  assert.deepEqual(validateDocument(store.state.current.document).blockers, []);
+  assert.ok(compileGraph(store.state.current.document).tasks.some(t => t.untimed));
 });
 test('concurrent wake-lock requests share one request and denied requests are handled', async () => {
   const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');

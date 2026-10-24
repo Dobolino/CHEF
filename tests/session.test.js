@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compileGraph } from '../src/planning/graph.js';
-import { readiness, plan } from '../src/planning/scheduler.js';
-import { newSession, reduceSession, isComplete } from '../src/session/state.js';
+import { readiness, plan, runtimeLocks } from '../src/planning/scheduler.js';
+import { newSession, reduceSession, isComplete, timerRows } from '../src/session/state.js';
 import { createStore, STORAGE_KEY } from '../src/session/store.js';
 import { packingPlan } from '../src/ui/views.js';
 import { menu, recipe, task, hold, memoryStorage } from './helpers.js';
@@ -11,6 +11,30 @@ function fixture() {
   const doc = menu([recipe('a', [task('start', 2), task('wait', 20, { mode: 'passive', deps: ['start'] }), task('pack', 1, { deps: ['wait'] })], [hold('pot', 'pot', 'start', 'pack')])]);
   return { doc, graph: compileGraph(doc) };
 }
+test('untimed handwork survives reload without an alarm and retains resources until completion', () => {
+  const a = recipe('a', [task('chop', 1, { duration: null }), task('wait', 60, { mode: 'passive', deps: ['chop'] })], [hold('board', 'board', 'chop', 'chop')]);
+  const doc = menu([a, recipe('b', [task('other', 1)])]);
+  const storage = memoryStorage(), store = createStore(storage); store.activate(doc);
+  const graph = compileGraph(doc);
+  store.commit(next => { next.current.session = reduceSession(graph, next.current.session, { type: 'START', id: 'a/chop' }, 1000); });
+  let s = createStore(storage).state.current.session;
+  assert.equal(s.tasks['a/chop'].status, 'running');
+  assert.equal(s.timers['a/chop'], undefined);
+  assert.equal(timerRows(s, graph).length, 0);
+  s = reduceSession(graph, s, { type: 'TICK' }, 99999999);
+  assert.equal(s.tasks['a/chop'].status, 'running');
+  assert.equal(readiness(graph, s, 'a/wait').ready, false);
+  assert.equal(readiness(graph, s, 'b/other').ready, false);
+  assert.ok(runtimeLocks(graph, s).some(l => l.resourceId === 'board-1'));
+  assert.ok(plan(graph, { session: s }).entries.every(e => Number.isFinite(e.end)));
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/chop' }, 99999999);
+  assert.equal(readiness(graph, s, 'a/wait').ready, true);
+  assert.equal(readiness(graph, s, 'b/other').ready, true);
+  assert.equal(runtimeLocks(graph, s).length, 0);
+  s = reduceSession(graph, s, { type: 'START', id: 'a/wait' }, 99999999);
+  assert.equal(s.timers['a/wait'].endsAt, 100059999);
+  assert.equal(doc.recipes[0].tasks[0].duration, null);
+});
 test('absolute timer deadlines survive serialization and acknowledgement is individual', () => {
   const { graph } = fixture(); let s = newSession();
   s = reduceSession(graph, s, { type: 'START', id: 'a/start' }, 1000);

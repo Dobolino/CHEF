@@ -1,4 +1,10 @@
 let audio = null, wakeLock = null, wakeRequest = null, wakeWanted = false, speaking = false;
+export function lockTouchZoom() {
+  // Safari can ignore user-scalable=no. Keep one-finger scrolling and swipes.
+  const prevent = event => { if (event.cancelable) event.preventDefault(); };
+  for (const type of ['gesturestart', 'gesturechange']) document.addEventListener(type, prevent, { passive: false });
+  document.addEventListener('touchmove', event => { if (event.touches.length > 1) prevent(event); }, { passive: false });
+}
 export function unlockAudio() {
   try { audio ||= new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') void audio.resume().catch(() => {}); } catch { /* Visual alarm remains available. */ }
 }
@@ -56,7 +62,7 @@ export function download(name, value, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export async function shareText(text) {
-  if (navigator.share) { try { await navigator.share({ title: 'CHEF Einkaufsliste', text }); return; } catch (error) { if (error.name === 'AbortError') return; } }
+  if (navigator.share) { try { await navigator.share({ title: 'CHEF', text }); return; } catch (error) { if (error.name === 'AbortError') return; } }
   if (navigator.clipboard?.writeText) { try { await navigator.clipboard.writeText(text); return; } catch { /* Download is available without clipboard permission. */ } }
-  download('chef-einkauf.txt', text, 'text/plain');
+  download('chef-rezept-prompt.txt', text, 'text/plain');
 }

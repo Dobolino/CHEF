@@ -57,7 +57,9 @@ export function validateDocument(document) {
     }
     for (const [ti, task] of recipe.tasks.entries()) {
       const taskPath = `${path}/tasks/${ti}`;
-      if (task.duration == null && selected.has(recipe.id)) issue(blockers, 'UNKNOWN_DURATION', `${taskPath}/duration`, `${recipe.name}: Zeit für „${task.shortLabel || task.instruction}“ fehlt.`);
+      if (task.duration == null && selected.has(recipe.id)) issue(task.mode === 'active' ? warnings : blockers,
+        task.mode === 'active' ? 'UNTIMED_ACTIVE' : 'UNKNOWN_DURATION', `${taskPath}/duration`,
+        task.mode === 'active' ? `${recipe.name}: „${task.shortLabel || task.instruction}“ wird ohne Timer bestätigt.` : `${recipe.name}: Warte- oder Garzeit für „${task.shortLabel || task.instruction}“ fehlt.`);
       for (const dep of task.dependsOn) if (!tasks.has(dep)) issue(errors, 'UNKNOWN_DEPENDENCY', `${taskPath}/dependsOn`, `Vorgänger „${dep}“ existiert nicht.`);
       if (task.prep && (!ingredients.has(task.prep.ingredientId) || task.phase !== 'prep' || task.mode !== 'active')) issue(errors, 'INVALID_PREP', `${taskPath}/prep`, 'Zusammenfassbare Vorbereitung braucht eine vorhandene Zutat und eine aktive Prep-Aufgabe.');
       if (['rawMeat', 'rawFish'].includes(task.prep?.hygieneGroup)) {

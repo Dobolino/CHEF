@@ -58,7 +58,7 @@ Jede Aufgabe braucht `id`, `phase`, `mode`, `instruction`, `duration`, `dependsO
 
 - Phasen: `prep`, `cook`, `cool`, `pack`.
 - Modi: `active` oder `passive`. Handarbeit und Wartezeit trennen. Wiederholtes Rühren als eigene aktive Aufgaben modellieren.
-- `duration.seconds`: positive ganze Sekunden. Fehlende Zeit als `duration: null`; das Menü bleibt dann ein Entwurf.
+- `duration.seconds`: positive ganze Sekunden. Handarbeit ohne verlässliche Zeit darf `duration: null` haben und wird dann ohne Timer bestätigt. Für passive Koch-, Back- und Wartephasen ist eine Dauer nötig; andernfalls bleibt das Menü ein Entwurf. Keine Garzeiten erfinden.
 - `scaling`: `fixed`, `linear` oder `batches`. Bei `batches` ist `batchCapacityServings` Pflicht; `seconds` ist die Dauer eines Durchgangs.
 - `dependsOn` nennt vorhandene Vorgänger dieses Rezepts und bedeutet vollständigen Abschluss. Keine Kreise.
 - `uses`: beispielsweise `{"ingredientId":"onion","role":"prepare"}`. Rollen: `prepare`, `consume`, `transfer`; optional `fraction`, `quantity`, `note`. Dieselbe Menge nicht mehrfach als verbraucht deklarieren.

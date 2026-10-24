@@ -92,6 +92,16 @@ test('three-recipe demo includes shared onions and a locked-board cleaning task'
   assert.ok(g.tasks.some(t => t.id.endsWith('~clean'))); assertValid(g, p);
   assert.deepEqual(p, plan(g));
 });
+test('merged preparation without complete times remains manual and a passive time cannot be guessed', () => {
+  const prep = duration => task('chop', 60, { phase: 'prep', duration, uses: [{ ingredientId: 'water', role: 'prepare' }],
+    prep: { ingredientId: 'water', operation: 'weigh', resultSpec: 'measured', hygieneGroup: 'produce', mergeAllowed: true } });
+  const d = menu([recipe('a', [prep(null)]), recipe('b', [prep({ seconds: 60, scaling: 'fixed' })])]);
+  const graph = compileGraph(d);
+  assert.equal(graph.tasks.length, 1); assert.equal(graph.tasks[0].untimed, true);
+  assert.equal(graph.tasks[0].uses.length, 2); assertValid(graph, plan(graph));
+  d.recipes[0].tasks[0].mode = 'passive';
+  assert.throws(() => compileGraph(d), /Warte- oder Garzeit/);
+});
 test('small generated DAGs preserve dependencies and attention constraints', () => {
   for (let size = 2; size < 18; size++) {
     const tasks = Array.from({ length: size }, (_, i) => task(`task-${i}`, (i * 17 % 20) + 1, { mode: i % 3 ? 'active' : 'passive', deps: i > 1 ? [`task-${Math.floor(i / 2) - 1}`] : [] }));

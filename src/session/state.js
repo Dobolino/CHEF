@@ -35,7 +35,7 @@ export function reduceSession(graph, current, action, now = Date.now()) {
       }
       session.startedAt ??= now;
       session.tasks[task.id] = { status: 'running', startedAt: now, completedAt: null };
-      session.timers[task.id] = { endsAt: now + task.durationSeconds * 1000, durationSeconds: task.durationSeconds, state: 'running' };
+      if (!task.untimed) session.timers[task.id] = { endsAt: now + task.durationSeconds * 1000, durationSeconds: task.durationSeconds, state: 'running' };
       break;
     }
     case 'COMPLETE':

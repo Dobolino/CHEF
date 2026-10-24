@@ -1,6 +1,9 @@
 import { topological } from '../data/validate.js';
 import { normalizeQuantity, recipeQuantity, formatQuantity } from '../data/units.js';
 
+// A scheduling estimate only: never written into the recipe or used as a timer.
+const UNTIMED_ACTIVE_PLAN_SECONDS = 120;
+
 export function compileGraph(document, { merge = true } = {}) {
   let tasks = [], holds = [];
   const aliases = new Map();
@@ -9,8 +12,8 @@ export function compileGraph(document, { merge = true } = {}) {
     const factor = selection.servings / recipe.baseServings;
     const instances = new Map();
     for (const source of recipe.tasks) {
-      if (!source.duration) throw new Error(`Zeit für „${source.instruction}“ fehlt.`);
-      const count = source.duration.scaling === 'batches' ? Math.ceil(selection.servings / source.duration.batchCapacityServings) : 1;
+      if (!source.duration && source.mode !== 'active') throw new Error(`Warte- oder Garzeit für „${source.instruction}“ fehlt.`);
+      const count = source.duration?.scaling === 'batches' ? Math.ceil(selection.servings / source.duration.batchCapacityServings) : 1;
       instances.set(source.id, Array.from({ length: count }, (_, i) => `${recipe.id}/${source.id}${count > 1 ? `~${i + 1}` : ''}`));
     }
     for (const source of recipe.tasks) {
@@ -24,11 +27,12 @@ export function compileGraph(document, { merge = true } = {}) {
             foodId: ingredient.foodId, role: use.role, quantity: quantity?.kind === 'exact' ? { ...quantity, value: quantity.value / count } : quantity,
             allergens: ingredient.allergens || [], note: use.note || '' };
         });
-        const durationSeconds = Math.max(1, Math.ceil(source.duration.seconds * (source.duration.scaling === 'linear' ? factor : 1)));
+        const untimed = source.duration == null;
+        const durationSeconds = untimed ? UNTIMED_ACTIVE_PLAN_SECONDS : Math.max(1, Math.ceil(source.duration.seconds * (source.duration.scaling === 'linear' ? factor : 1)));
         tasks.push({ id, dependsOn: dependencyIds, recipeIds: [recipe.id], recipeNames: [recipe.name],
           sourceTasks: [`${recipe.id}/${source.id}`], phase: source.phase, mode: source.mode,
           instruction: source.instruction, shortLabel: source.shortLabel || source.instruction,
-          tip: source.tip || '', sourceText: source.sourceText || '', uses, durationSeconds,
+          tip: source.tip || '', sourceText: source.sourceText || '', uses, durationSeconds, untimed,
           prep: source.prep ? { ...source.prep, foodId: recipe.ingredients.find(i => i.id === source.prep.ingredientId).foodId } : null,
           batchIndex: index + 1, batchCount: count });
       }
@@ -61,7 +65,7 @@ export function compileGraph(document, { merge = true } = {}) {
         recipeNames: [...new Set(group.flatMap(t => t.recipeNames))], sourceTasks: group.flatMap(t => t.sourceTasks),
         instruction: `${formatQuantity({ kind: 'exact', unit: normalizeQuantity(group[0].uses[0].quantity).unit, value: group.reduce((n, t) => n + normalizeQuantity(t.uses[0].quantity).value, 0) })} ${group[0].uses[0].name} gemeinsam ${verbs[group[0].prep.operation]}. Danach nach den angegebenen Teilmengen aufteilen.`,
         shortLabel: `${group[0].uses[0].name} gemeinsam vorbereiten`,
-        durationSeconds: group.reduce((n, t) => n + t.durationSeconds, 0), uses: group.flatMap(t => t.uses) };
+        durationSeconds: group.reduce((n, t) => n + t.durationSeconds, 0), untimed: group.some(t => t.untimed), uses: group.flatMap(t => t.uses) };
       tasks = tasks.filter(t => !memberIds.has(t.id)); tasks.push(merged);
       tasks = tasks.map(t => ({ ...t, dependsOn: [...new Set(t.dependsOn.map(dep => memberIds.has(dep) ? id : dep))] }));
       const mergedHolds = new Map();
@@ -79,7 +83,7 @@ export function compileGraph(document, { merge = true } = {}) {
     const id = `${task.id}~clean`;
     const clean = { ...task, id, dependsOn: [task.id], prep: null, uses: [], sourceTasks: [],
       instruction: 'Brett, Messer und Hände nach dem rohen Fleisch oder Fisch gründlich reinigen.',
-      shortLabel: 'Brett und Messer reinigen', durationSeconds: document.kitchen.cleaningSeconds || 60,
+      shortLabel: 'Brett und Messer reinigen', durationSeconds: document.kitchen.cleaningSeconds || 60, untimed: false,
       tip: 'Geschätzte Reinigungszeit; erst nach tatsächlicher Reinigung bestätigen.' };
     tasks = tasks.map(t => t.id === task.id ? t : { ...t, dependsOn: t.dependsOn.map(dep => dep === task.id ? id : dep) });
     tasks.push(clean);

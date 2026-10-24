@@ -28,11 +28,12 @@ Die Cloud-Umgebung enthält Python Playwright und `/usr/bin/chromium`. Auf ander
 
 ## Bedienung
 
-1. **Wochenmenü:** Gerichte und Portionen je Gericht wählen. Unter „Küche einstellen“ den tatsächlichen Gerätebestand eintragen. Während des Kochens bleiben diese Daten fest; ein neuer Kochabend archiviert den alten Stand.
-2. **Einkauf:** Vorratsmengen eintragen, verbleibenden Bedarf abhaken, teilen oder drucken. Erst jedes Rezept skalieren, dann gleiche Produkte mit kompatiblen Einheiten addieren. Einkaufshäkchen und Bereitstellhäkchen haben unterschiedliche Bedeutungen.
-3. **Vorbereiten:** Zutaten und Geräte bestätigen. Die eigentlichen Vorbereitungsarbeiten und Wartezeiten sind Teil des gemeinsamen Kochplans.
-4. **Kochen:** Aufgabe starten, ausführen und bestätigen. Während passiver Zeit „Währenddessen weiter“ nutzen. Alarme quittieren nur die Erinnerung; ein Garprozess ist erst nach ausdrücklicher Prüfung abgeschlossen.
-5. **Abschluss:** Behälter und separate Saucenbecher zuordnen; optional ein gemessenes Gesamtgewicht eingeben. Fehlende Haltbarkeitsangaben werden nicht geschätzt.
+1. **Menü:** Gerichte und Portionen je Gericht wählen und „Kochen starten“ drücken. Der Ablauf verwendet die Geräte aus den Rezeptdaten; Altimporte erhalten eine Standardküche. Während des Kochens bleiben diese Daten fest; ein neuer Kochabend archiviert den alten Stand.
+2. **Vorbereiten (optional):** Zusammengefasste Zutaten und Geräte nachsehen oder abhaken. Diese Liste sperrt den Kochstart nicht. Schneiden, Abmessen und andere Vorbereitungen sind Teil des gemeinsamen Kochplans. Eine Einkaufsansicht und einen Kücheneinstellungsdialog gibt es nicht mehr; frühere Einkaufsdaten bleiben in Sicherungen erhalten.
+3. **Kochen:** Aufgabe starten, ausführen und bestätigen. Handarbeit ohne Zeitangabe läuft ohne Timer bis zur Bestätigung. Während passiver Zeit „Währenddessen weiter“ nutzen. Alarme quittieren nur die Erinnerung; ein Garprozess ist erst nach ausdrücklicher Prüfung abgeschlossen.
+4. **Abschluss:** Behälter und separate Saucenbecher zuordnen; optional ein gemessenes Gesamtgewicht eingeben. Fehlende Haltbarkeitsangaben werden nicht geschätzt.
+
+Die vier Navigationsziele bleiben oben sichtbar, auch auf dem Smartphone. Pinch- und Doppeltipp-Zoom sind für die Touch-Bedienung deaktiviert; Safari-Gesten werden zusätzlich abgefangen. Die Systemfunktionen zur Bildschirmvergrößerung bleiben Sache des Geräts. Schriftgrößen in Eingaben vermeiden den automatischen iOS-Fokuszoom. Physische iPad-/iPhone-Prüfungen bleiben erforderlich.
 
 Die angezeigte Dauer bis zum Portionieren umfasst die modellierten Phasen. Nicht modellierte Abkühl-/Lagerungsschritte sind nicht automatisch erledigt; sie lassen sich als `cool`-Tasks aufnehmen. Vorbereitungszeiten des Beispielmenüs sind gekennzeichnete Schätzwerte.
 
@@ -46,11 +47,11 @@ Der Vertrag liegt in [schemas/menu.v2.schema.json](schemas/menu.v2.schema.json):
 
 Rezeptimporte sind auf 1 MB, Quellaufgaben auf 2048 und nach Batch-Aufteilung erzeugte Aufgaben auf 4096 begrenzt. Dies sind Schutzgrenzen, keine Leistungszusage für maximal große Menüs.
 
-Mengen sind Zahlen mit Einheit: `0.5` statt `"1/2"`. Doppelte JSON-Schlüssel, doppelte IDs, ungültige Referenzen, unbekannte Felder und Abhängigkeitskreise werden abgewiesen. Unbekannte Mengen (`quantity.kind: "unknown"`) oder Zeiten (`duration: null`) bleiben als Entwurf importierbar, verhindern aber bei erforderlichen Angaben die automatische Planung. Zeiten lassen sich in den Rezeptdetails ergänzen, vollständige Daten unter „Rezeptdaten bearbeiten“.
+Mengen sind Zahlen mit Einheit: `0.5` statt `"1/2"`. Doppelte JSON-Schlüssel, doppelte IDs, ungültige Referenzen, unbekannte Felder und Abhängigkeitskreise werden abgewiesen. Unbekannte erforderliche Mengen (`quantity.kind: "unknown"`) und passive Warte-/Garzeiten (`duration: null`) bleiben Entwurfsblocker. Aktive Handarbeit ohne Dauer ist direkt ausführbar, erhält keinen automatischen Timer und muss ausdrücklich bestätigt werden. Nur für die grobe Reihenfolge und ETA setzt der Planer dafür zwei Minuten pro Quellaufgabe an; die Originaldaten bleiben `null`. Solche Zeitpläne sind entsprechend gekennzeichnet. Zeiten lassen sich optional in den Rezeptdetails ergänzen, vollständige Daten unter „Rezeptdaten bearbeiten“.
 
 Eine Vorschau ersetzt Daten erst nach Übernahme. Das vorherige Menü wird archiviert. Archivierte Timer behalten ihre Endzeitpunkte, lösen aber keine Alarme aus. Darauf weist die App beim Wechsel eines laufenden Vorgangs ausdrücklich hin. Zum Weiterkochen den alten Stand wiederherstellen.
 
-Formate 1.0–1.3 und das frühere unversionierte Format werden kontrolliert übernommen. `examples/legacy-menu.json` erhält die vorherige Rezeptdatei. Der Adapter schätzt keine fehlenden Vorbereitungszeiten und erzeugt konservative Abhängigkeiten. Alte Browser-Schlüssel werden nicht gelöscht; Rohfortschritt und Häkchen bleiben zusätzlich gesichert, alte Timer werden sichtbar übernommen. Ein alter, nach Seitenzahlen geführter Zustand wird ohne vollständige Zeiten und Fachabhängigkeiten nicht als fertiger neuer Ablaufplan ausgegeben.
+Formate 1.0–1.3 und das frühere unversionierte Format werden kontrolliert übernommen. `examples/legacy-menu.json` erhält die vorherige Rezeptdatei. Der Adapter ergänzt keine erfundenen Rezeptzeiten und erzeugt konservative Abhängigkeiten. Fehlende aktive Vorbereitungszeiten verhindern den Start nicht. Das gilt auch für bereits gespeicherte migrierte Menüs, ohne erneuten Import. Alte Browser-Schlüssel werden nicht gelöscht; Rohfortschritt und Häkchen bleiben zusätzlich gesichert, alte Timer werden sichtbar übernommen. Alte, nach Seitenzahlen geführte Häkchen gelten nicht automatisch als erledigte neue Aufgaben.
 
 ## Planungsregeln
 

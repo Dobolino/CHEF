@@ -68,30 +68,29 @@ with sync_playwright() as p:
     page.wait_for_function("JSON.parse(localStorage.getItem('chef.workspace.v2')).current.document.selection[0].servings===6")
     assert snapshot(page)['current']['document']['selection'][1]['servings'] == 5
     ok('Three recipes load; portions change independently')
-    page.locator('[data-action="kitchen"]').click()
-    page.locator('[name="pot"]').fill('1')
-    page.locator('#kitchenForm button[type="submit"]').click()
-    page.locator('#kitchenDialog').wait_for(state='hidden')
-    assert len([r for r in snapshot(page)['current']['document']['kitchen']['resources'] if r['kind']=='pot']) == 1
+    assert page.locator('.navigation a').count() == 4
+    assert not page.locator('[data-action="kitchen"]').count()
+    assert not page.get_by_role('link',name='Einkauf',exact=True).count()
+    page.locator('.navigation a[href="#cook"]').click()
+    page.wait_for_function('document.body.dataset.view==="cook"')
+    assert page.locator('.navigation a[aria-current="page"]').inner_text() == 'Kochen'
+    page.locator('.navigation a[href="#overview"]').click()
+    page.wait_for_function('document.body.dataset.view==="overview"')
+    ok('Four navigation destinations work without shopping or kitchen setup')
+    one_pot = snapshot(page)['current']['document']
+    one_pot['kitchen']['resources'] = [r for r in one_pot['kitchen']['resources'] if r['kind']!='pot' or r['id']=='pot-1']
+    import_data(page, one_pot)
     goto(page, 'plan')
     assert page.locator('.schedule-list>li').count() > 30
     assert not page.get_by_text('Kein ausführbarer Ablauf gefunden', exact=False).count()
-    ok('One-pot kitchen setting produces a complete plan')
-    goto(page, 'shopping')
-    onions = page.locator('.checkrow').filter(has=page.locator('.item-name', has_text='Zwiebel')).first
-    onions.locator('[data-pantry]').fill('1')
-    onions.locator('[data-pantry]').press('Tab')
-    page.wait_for_timeout(100)
-    onions.locator('[data-bought]').check()
-    assert any(value is not False for value in snapshot(page)['current']['checks']['bought'].values())
-    ok('Shopping aggregates ingredients and keeps pantry quantities separate')
-    goto(page, 'prep')
-    page.locator('[data-action="all-ready"]').click()
-    page.wait_for_timeout(100)
-    assert all(snapshot(page)['current']['checks']['ready'].values())
+    ok('Imported equipment still produces a valid one-pot plan without a setup dialog')
     goto(page, 'cook')
+    assert not snapshot(page)['current']['checks']['ready']
+    assert not snapshot(page)['current']['checks']['equipment']
     page.locator('[data-action="start-task"]').click()
     page.locator('.timer-chip').wait_for()
+    assert not page.locator('#confirmDialog').is_visible()
+    assert not snapshot(page)['current']['checks']['ready']
     initial = snapshot(page)['current']['session']
     timer_id = next(iter(initial['timers']))
     page.locator('[data-action="adjust-timer"][data-seconds="60"]').click()
@@ -104,7 +103,7 @@ with sync_playwright() as p:
     ok('Timer extension preserves deadline arithmetic; timer rail retains keyboard focus')
     page.goto(BASE+'/kochmodus.html#mise', wait_until='networkidle')
     assert snapshot(page)['current']['session']['timers'][timer_id]['endsAt'] == deadline
-    assert snapshot(page)['current']['checks']['ready']
+    assert not snapshot(page)['current']['checks']['ready']
     goto(page, 'cook')
     page.reload(wait_until='networkidle')
     assert snapshot(page)['current']['session']['timers'][timer_id]['endsAt'] == deadline
@@ -196,10 +195,67 @@ with sync_playwright() as p:
     ok('Offline reload and compatibility navigation use the complete cached app')
     context.close()
 
+    legacy_context = browser.new_context(viewport={'width':1024,'height':768},has_touch=True,is_mobile=True)
+    page = legacy_context.new_page()
+    page.on('pageerror',lambda error:results['page_errors'].append(str(error)))
+    goto(page,'overview')
+    legacy = json.loads((ROOT/'examples/legacy-menu.json').read_text())
+    page.evaluate("""async source => {
+      const {importMenu}=await import('./src/data/validate.js');
+      const {snapshot}=await import('./src/session/store.js');
+      const current=snapshot(importMenu(JSON.stringify(source)).document);
+      localStorage.setItem('batchcooking_recipes',JSON.stringify(source));
+      localStorage.setItem('chef.workspace.v2',JSON.stringify({version:2,current,archive:[],initialized:true}));
+    }""",legacy)
+    page.reload(wait_until='networkidle')
+    assert not page.get_by_text('Noch nicht planbar',exact=True).count()
+    original = snapshot(page)['current']['document']
+    assert any(t['duration'] is None for r in original['recipes'] for t in r['tasks'])
+    page.screenshot(path=str(OUT/'legacy-menu-ipad.png'),full_page=True)
+    page.locator('.summary [data-route="cook"]').click()
+    page.wait_for_function('document.body.dataset.view==="cook"')
+    first = page.locator('[data-action="start-task"]').get_attribute('data-id')
+    page.locator('[data-action="start-task"]').click()
+    page.wait_for_function('(id)=>JSON.parse(localStorage.getItem("chef.workspace.v2")).current.session.tasks[id]?.status==="running"',arg=first)
+    assert not page.locator('#confirmDialog').is_visible()
+    assert not snapshot(page)['current']['session']['timers']
+    page.reload(wait_until='networkidle')
+    assert page.locator('[data-action="complete-task"]').is_enabled()
+    assert snapshot(page)['current']['session']['tasks'][first]['status']=='running'
+    assert not page.locator('.big-timer').count()
+    page.screenshot(path=str(OUT/'legacy-cooking-ipad.png'),full_page=True)
+    page.locator('[data-action="complete-task"]').click()
+    page.wait_for_function('(id)=>JSON.parse(localStorage.getItem("chef.workspace.v2")).current.session.tasks[id]?.status==="completed"',arg=first)
+    assert snapshot(page)['current']['document']==original
+    assert json.loads(page.evaluate("localStorage.getItem('batchcooking_recipes')"))==legacy
+    assert not snapshot(page)['current']['checks']['ready']
+    ok('Existing migrated menus cook without missing prep times, checklist gates or invented timers; reload preserves manual steps')
+    missing = timer_fixture()
+    missing['recipes'][0]['tasks'][0]['duration']=None
+    import_data(page,missing)
+    page.locator('.navigation a[href="#cook"]').click()
+    page.wait_for_function('document.body.dataset.view==="cook"')
+    page.locator('[data-action="show-missing"]').click()
+    field = page.locator('[data-required-time]')
+    assert field.is_visible()
+    assert field.evaluate('(e)=>document.activeElement===e')
+    field.fill('1');field.press('Tab')
+    page.wait_for_function('JSON.parse(localStorage.getItem("chef.workspace.v2")).current.document.recipes[0].tasks[0].duration?.seconds===60')
+    page.locator('.summary [data-route="cook"]').click()
+    page.wait_for_function('document.body.dataset.view==="cook"')
+    page.locator('[data-action="start-task"]').click()
+    page.locator('.timer-chip').wait_for()
+    assert not page.locator('#confirmDialog').is_visible()
+    ok('Missing passive time leads straight to an editable field and starts a real timer after correction')
+    assert page.evaluate("!document.dispatchEvent(new Event('gesturestart',{cancelable:true}))")
+    assert page.evaluate("getComputedStyle(document.documentElement).touchAction")=='pan-x pan-y'
+    assert 'user-scalable=no' in page.locator('meta[name="viewport"]').get_attribute('content')
+    ok('Touch zoom gestures are blocked while single-finger scrolling remains available')
+    legacy_context.close()
     for name,width,height in [('iphone-se',320,568),('iphone',390,844),('iphone-landscape',844,390),('ipad-landscape',1024,768),('ipad-portrait',768,1024)]:
         context = browser.new_context(viewport={'width':width,'height':height},is_mobile=True,has_touch=True)
         page=context.new_page();page.on('pageerror',lambda error:results['page_errors'].append(str(error)))
-        for route in ['overview','shopping','prep','cook','plan','archive']:
+        for route in ['overview','prep','cook','plan','archive']:
             goto(page,route)
             geometry=page.evaluate('''() => ({overflow:document.documentElement.scrollWidth>innerWidth+1,
               small:[...document.querySelectorAll('button,summary,.navigation a')].filter(x=>x.getClientRects().length&&!x.disabled).map(x=>({label:x.textContent.trim().slice(0,25),w:x.getBoundingClientRect().width,h:x.getBoundingClientRect().height})).filter(x=>x.w<44||x.h<44)})''')
@@ -209,7 +265,7 @@ with sync_playwright() as p:
         if name=='ipad-landscape':
             goto(page,'overview');page.evaluate('window.scrollTo(0,0)');page.screenshot(path=str(OUT/'overview-ipad.png'),full_page=True)
         context.close()
-    ok('Five mobile/tablet viewport sizes: six views fit and buttons have at least 44px targets')
+    ok('Five mobile/tablet viewport sizes: five views fit and buttons have at least 44px targets')
     browser.close()
 
 assert not results['page_errors'],results['page_errors']
