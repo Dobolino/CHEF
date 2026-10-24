@@ -70,23 +70,52 @@ export function cookView(current, graph, forecast, selectedTaskId, voice, valida
   const session = current.session;
   if (!graph) return heading('Kochen', 'Noch kurz ergänzen.', 'Ergänze die markierten Angaben, damit dein Ablauf starten kann.') + issues(validation) + action('show-missing', 'Fehlende Angaben ergänzen', '', 'primary');
   if (isComplete(graph, session)) return heading('Geschafft', 'Dein Menü ist gekocht.', 'Alle Aufgaben sind ausdrücklich abgeschlossen.') + `<div class="summary"><div><strong>Jetzt portionieren und beschriften.</strong><p>Zubereitet: ${date(session.cookedAt)}</p></div>${link('finish', 'Behälter & Lagerung →', 'success')}</div>`;
-  const pending = forecast?.entries.map(e => graph.byId.get(e.taskId)) || graph.tasks;
-  const task = graph.byId.get(selectedTaskId) || pending.find(t => readiness(graph, session, t.id).ready) || pending[0] || graph.tasks[0];
+  const ordered = forecast?.entries.map(e => graph.byId.get(e.taskId)) || graph.tasks;
+  const task = graph.byId.get(selectedTaskId) || ordered.find(t => readiness(graph, session, t.id).ready) || ordered[0] || graph.tasks[0];
   const record = session.tasks[task.id], timer = session.timers[task.id], available = readiness(graph, session, task.id);
-  const completed = record?.status === 'completed', skipped = record?.status === 'skipped', running = record && ['running', 'elapsed'].includes(record.status);
-  return heading('Kochmodus', 'Jetzt kochen.', `${completedCount(graph, session)} von ${graph.tasks.length} Aufgaben erledigt`,
-    `${link('plan', 'Alle Schritte')}${link('prep', 'Zutaten nachsehen')}`) + `<p class="muted" data-live-eta>${forecast ? `≈ ${duration(forecast.totalSeconds)} geschätzt übrig` : ''}</p>` +
-    `<div class="cook-layout"><div><article class="cook-card" style="--recipe-color:${recipeColor(current.document, task.recipeIds[0])}"><div class="cook-head"><span class="pill ${record?.status === 'elapsed' ? 'warn' : ''}">${esc(taskState(task, session))}</span><div class="actions">${action('speak', 'Vorlesen', `data-id="${esc(task.id)}"`)}${voice ? action('voice', 'Sprachbefehl', `data-id="${esc(task.id)}"`) : ''}</div></div><span class="tag">${esc(task.recipeNames.join(' + '))}${task.batchCount > 1 ? ` · Durchgang ${task.batchIndex}/${task.batchCount}` : ''}</span><h2 class="cook-instruction">${esc(task.instruction)}</h2>${task.sourceText ? `<div class="notice">Originalanleitung aus dem Altformat. Mengen im Text gelten für die Rezeptbasis; verwende für deine Portionen die angezeigten Mengen-Chips.</div>` : ''}
-      ${task.uses.length ? `<div class="ingredient-chips">${task.uses.map(u => `<span class="ingredient-chip"><strong>${esc(formatQuantity(u.quantity))}</strong> ${esc(u.name)}${task.recipeIds.length > 1 ? `<small>für ${esc(current.document.recipes.find(r => r.id === u.recipeId)?.name)}</small>` : ''}${u.note ? `<small>${esc(u.note)}</small>` : ''}</span>`).join('')}</div>` : ''}
-      ${task.tip ? `<details><summary>Tipp & Hinweise</summary><p>${esc(task.tip)}</p></details>` : ''}
-      ${!running && !completed && !skipped && !available.ready ? `<div class="notice">${esc(available.reason)}</div>` : ''}
-      ${running ? `${timer ? `<div class="timer-controls"><output class="big-timer mono" data-main-timer="${esc(task.id)}" aria-label="Restzeit">${countdown((timer?.endsAt - Date.now()) / 1000)}</output>${action('adjust-timer', '−1 Min.', `data-id="${esc(task.id)}" data-seconds="-60"`)}${action('adjust-timer', '+1 Min.', `data-id="${esc(task.id)}" data-seconds="60"`)}</div>` : '<div class="notice">Ohne Zeitvorgabe: Führe den Schritt in deinem Tempo aus und bestätige ihn anschließend.</div>'}<p class="muted">${task.mode === 'passive' ? 'Der Timer erinnert ans Prüfen. Geräte werden erst nach dem vorgesehenen Abschlussschritt frei.' : timer ? 'Handarbeit bleibt aktiv, bis du sie bestätigst. Der Timer ist eine Orientierung.' : 'Handarbeit bleibt aktiv, bis du sie bestätigst.'}</p>${action('complete-task', task.mode === 'passive' ? 'Geprüft & erledigt ✓' : 'Erledigt & weiter ✓', `data-id="${esc(task.id)}"`, 'primary cook-primary')}${task.mode === 'passive' ? action('next-ready', 'Währenddessen weiter →', '', 'full spaced') : ''}`
-        : completed ? `<div class="notice">Dieser Schritt ist abgeschlossen.</div>${action('next-ready', 'Nächsten verfügbaren Schritt zeigen', '', 'primary cook-primary')}`
-        : skipped ? `<div class="warning">Übersprungen. Abhängige Schritte warten weiter, bis du diesen Schritt nachholst.</div>${action('restore-task', 'Schritt wieder öffnen', `data-id="${esc(task.id)}"`, 'primary cook-primary')}`
-        : `${action('start-task', task.mode === 'passive' ? `Timer starten · ${duration(task.durationSeconds)}` : task.untimed ? 'Schritt starten' : `Schritt starten · ${duration(task.durationSeconds)}`, `data-id="${esc(task.id)}" ${available.ready ? '' : 'disabled'}`, 'primary cook-primary')}<div class="actions spaced">${action('skip-task', 'Für später überspringen', `data-id="${esc(task.id)}"`, 'ghost')}</div>`}
-     </article>${voice ? `<details><summary>Sprachbefehle</summary><p>„Wiederholen“, „erledigt“, „weiter“, „eine Minute mehr“. Die Erkennung wird nur per Tastendruck aktiviert. Je nach Browser verarbeitet ein externer Spracherkennungsdienst das Mikrofon-Audio.</p></details>` : ''}
-     <label class="field spaced">Notiz zum Kochabend<textarea data-session-note rows="3" maxlength="2000">${esc(session.note)}</textarea></label></div>
-     <aside class="panel"><h2>Dein Ablauf</h2><div class="progress"><span style="width:${completedCount(graph, session) / graph.tasks.length * 100}%"></span></div>${taskRows(pending.filter(t => session.tasks[t.id]?.status !== 'completed').slice(0, 7), session, graph)}<div class="actions spaced">${link('plan', 'Alle Aufgaben ansehen')}${link('finish', 'Abschluss prüfen')}</div></aside></div>`;
+  const completed = record?.status === 'completed', skipped = record?.status === 'skipped';
+  const running = record && ['running', 'elapsed'].includes(record.status);
+  const done = completedCount(graph, session);
+  const names = task.recipeNames.join(' + ');
+  let controls;
+  if (running) {
+    controls = `${timer ? `<div class="timer-controls"><output class="big-timer mono" data-main-timer="${esc(task.id)}" aria-label="Restzeit">${countdown((timer.endsAt - Date.now()) / 1000)}</output>${action('adjust-timer', '−1 Min.', `data-id="${esc(task.id)}" data-seconds="-60"`)}${action('adjust-timer', '+1 Min.', `data-id="${esc(task.id)}" data-seconds="60"`)}</div>` : '<p class="cook-manual">Ohne Timer · in deinem Tempo ausführen und bestätigen.</p>'}
+      ${action('complete-task', task.mode === 'passive' ? 'Geprüft & erledigt ✓' : 'Erledigt & weiter ✓', `data-id="${esc(task.id)}"`, 'primary cook-primary')}
+      ${task.mode === 'passive' ? action('next-ready', 'Währenddessen weiter →', '', 'cook-secondary') : ''}`;
+  } else if (completed) controls = action('next-ready', 'Nächster Schritt →', '', 'primary cook-primary');
+  else if (skipped) controls = action('restore-task', 'Schritt wieder öffnen', `data-id="${esc(task.id)}"`, 'primary cook-primary');
+  else if (!available.ready) controls = action('next-ready', 'Zum verfügbaren Schritt →', '', 'primary cook-primary');
+  else controls = action('start-task', task.mode === 'passive' ? `Timer starten · ${duration(task.durationSeconds)}` : task.untimed ? 'Schritt starten' : `Schritt starten · ${duration(task.durationSeconds)}`, `data-id="${esc(task.id)}"`, 'primary cook-primary');
+
+  return `<section class="cook-workspace" aria-label="Kochmodus">
+    <div class="cook-toolbar"><div class="cook-progress"><strong>${done} / ${graph.tasks.length} erledigt</strong><span class="muted" data-live-eta>${forecast ? `≈ ${duration(forecast.totalSeconds)} übrig` : ''}</span></div>
+      <div class="actions">${action('speak', 'Vorlesen', `data-id="${esc(task.id)}"`)}${action('cook-steps', 'Schritte', 'aria-haspopup="dialog" aria-controls="cookStepsDialog"')}</div>
+    </div>
+    <article class="cook-card cook-focus" style="--recipe-color:${recipeColor(current.document, task.recipeIds[0])}" aria-labelledby="cookInstruction">
+      <div class="cook-focus-head"><span class="tag" title="${esc(names)}">${esc(names)}${task.batchCount > 1 ? ` · ${task.batchIndex}/${task.batchCount}` : ''}</span><span class="pill ${record?.status === 'elapsed' ? 'warn' : ''}">${esc(taskState(task, session))}</span></div>
+      <div class="cook-step-body" data-scroll-key="step:${esc(task.id)}" role="region" aria-label="Anleitung und Zutaten" tabindex="0">
+        <h1 id="cookInstruction" class="cook-instruction">${esc(task.instruction)}</h1>
+        ${task.uses.length ? `<div class="ingredient-chips">${task.uses.map(u => `<span class="ingredient-chip"><strong>${esc(formatQuantity(u.quantity))}</strong> ${esc(u.name)}${task.recipeIds.length > 1 ? `<small>für ${esc(current.document.recipes.find(r => r.id === u.recipeId)?.name)}</small>` : ''}${u.note ? `<small>${esc(u.note)}</small>` : ''}</span>`).join('')}</div>` : ''}
+        ${completed ? '<p class="notice">Dieser Schritt ist abgeschlossen.</p>' : skipped ? '<p class="warning">Für später markiert. Abhängige Schritte warten, bis du ihn nachholst.</p>' : !running && !available.ready ? `<p class="notice">${esc(available.reason)}</p>` : ''}
+        ${task.tip ? `<details data-detail-key="tip:${esc(task.id)}"><summary>Tipp & Hinweise</summary><p>${esc(task.tip)}</p></details>` : ''}
+        <details class="cook-options" data-detail-key="options:${esc(task.id)}"><summary>Weitere Optionen</summary>
+          ${task.sourceText ? '<p>Verwende die angezeigten Zutatenmengen für deine Portionen. Mengen im Originaltext beziehen sich auf die Rezeptbasis.</p>' : ''}
+          ${running && timer ? `<p>${task.mode === 'passive' ? 'Der Timer erinnert ans Prüfen. Erst nach tatsächlichem Abschluss bestätigen.' : 'Der Timer ist eine Orientierung. Die Handarbeit endet mit deiner Bestätigung.'}</p>` : ''}
+          <div class="actions">${!running && !completed && !skipped ? action('skip-task', 'Für später markieren', `data-id="${esc(task.id)}"`, 'ghost') : ''}${voice ? action('voice', 'Sprachbefehl', `data-id="${esc(task.id)}"`) : ''}${link('finish', 'Abschluss prüfen')}</div>
+          ${voice ? '<p>Sprachbefehle: „wiederholen“, „erledigt“, „weiter“, „eine Minute mehr“. Das Mikrofon wird per Tastendruck aktiviert. Der Browser kann Audio an seinen Spracherkennungsdienst senden.</p>' : ''}
+          <details data-detail-key="ingredients:${esc(task.id)}"><summary>Alle Zutaten nachsehen</summary>${shoppingList(current.document).map(i => `<p>${esc(formatQuantity(i.quantity))} ${esc(i.name)}</p>`).join('')}</details>
+          <label class="field spaced">Notiz zum Kochabend<textarea id="cookNote" data-session-note rows="2" maxlength="2000">${esc(session.note)}</textarea></label>
+        </details>
+      </div>
+      <div class="cook-action-bar" aria-label="Schritt bedienen">${controls}</div>
+    </article>
+  </section>`;
+}
+export function cookStepsView(current, graph, forecast) {
+  const ordered = forecast?.entries.map(e => graph.byId.get(e.taskId)) || graph.tasks;
+  const open = ordered.filter(t => current.session.tasks[t.id]?.status !== 'completed');
+  const done = graph.tasks.filter(t => current.session.tasks[t.id]?.status === 'completed');
+  return `<p class="muted">${done.length} von ${graph.tasks.length} erledigt · Schritt antippen, um ihn zu öffnen.</p>${taskRows(open, current.session, graph)}${done.length ? `<details><summary>Erledigte Schritte (${done.length})</summary>${taskRows(done, current.session, graph)}</details>` : ''}`;
 }
 export function planView(current, graph, forecast, error) {
   if (!graph || !forecast) return heading('Ablaufplan', 'Plan noch nicht verfügbar.', error || 'Ergänze fehlende Angaben im Menü.') + link('overview', 'Zum Menü', 'primary');

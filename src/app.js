@@ -74,11 +74,15 @@ function render() {
   prepare();
   const current = store.state.current, page = route();
   document.body.dataset.view = page;
+  const focusCooking = page === 'cook' && graph && !store.loadError && !isComplete(graph, current.session);
+  document.body.dataset.cooking = focusCooking ? 'focus' : '';
+  if (!focusCooking && $('cookStepsDialog').open) $('cookStepsDialog').close();
   if (page === 'cook' && graph && !graph.byId.has(selectedTaskId)) selectedTaskId = currentTask()?.id;
   const focus = document.activeElement;
   const focusId = focus?.id;
   const focusAction = focus?.dataset.action, focusTask = focus?.dataset.id;
-  const openDetails = lastRenderedRoute === page ? [...$('viewRoot').querySelectorAll('details[open]')].map(d => [...$('viewRoot').querySelectorAll('details')].indexOf(d)) : [];
+  const openDetails = lastRenderedRoute === page ? [...$('viewRoot').querySelectorAll('details[open]')].map(d => d.dataset.detailKey || [...$('viewRoot').querySelectorAll('details')].indexOf(d)) : [];
+  const scrollPositions = lastRenderedRoute === page ? [...$('viewRoot').querySelectorAll('[data-scroll-key]')].map(node => ({ key: node.dataset.scrollKey, top: node.scrollTop })) : [];
   lastRenderedRoute = page;
   if (store.loadError) {
     $('viewRoot').innerHTML = `<div class="error"><h1>Gespeicherte Daten brauchen Aufmerksamkeit.</h1><p>${views.esc(store.loadError)}</p><p>Der gespeicherte Stand wurde nicht überschrieben. Sichere ihn vor einer Wiederherstellung.</p><div class="actions">${button('raw-backup', 'Gespeicherte Daten sichern')}${button('repair-storage', 'Wiederherstellung öffnen')}</div></div>`;
@@ -92,7 +96,16 @@ function render() {
   if (planError && current && !['archive', 'plan'].includes(page)) {
     const error = document.createElement('div'); error.className = 'warning'; error.textContent = planError; $('viewRoot').prepend(error);
   }
-  for (const index of openDetails) { const d = $('viewRoot').querySelectorAll('details')[index]; if (d) d.open = true; }
+  for (const key of openDetails) {
+    const details = [...$('viewRoot').querySelectorAll('details')];
+    const node = typeof key === 'number' ? details[key] : details.find(d => d.dataset.detailKey === key);
+    if (node) node.open = true;
+  }
+  for (const { key, top } of scrollPositions) {
+    const node = [...$('viewRoot').querySelectorAll('[data-scroll-key]')].find(node => node.dataset.scrollKey === key);
+    if (node) node.scrollTop = top;
+  }
+  if ($('cookStepsDialog').open) renderCookSteps();
   for (const a of document.querySelectorAll('.navigation a')) a.setAttribute('aria-current', a.hash === `#${page === 'plan' ? 'cook' : page === 'finish' ? 'cook' : page}` ? 'page' : 'false');
   document.title = `CHEF · ${({ overview: 'Wochenmenü', prep: 'Vorbereiten', cook: 'Kochen', archive: 'Archiv', plan: 'Ablaufplan', finish: 'Portionieren' })[page]}`;
   // Preserve explicit controls after state changes, never steal focus from a dialog.
@@ -104,6 +117,20 @@ function render() {
   renderTimers(); updateConnection(); updateWake(); updateVersionButton(); syncAlarm();
 }
 function button(action, label) { return `<button data-action="${action}">${label}</button>`; }
+function renderCookSteps() {
+  if (!graph || !store.state.current) return;
+  const content = $('cookStepsContent'), top = content.scrollTop;
+  const focusedTask = content.contains(document.activeElement) ? document.activeElement.dataset.id : null;
+  const completedOpen = content.querySelector('details')?.open;
+  content.innerHTML = views.cookStepsView(store.state.current, graph, forecast);
+  if (completedOpen && content.querySelector('details')) content.querySelector('details').open = true;
+  content.scrollTop = top;
+  if (focusedTask) [...content.querySelectorAll('[data-id]')].find(node => node.dataset.id === focusedTask)?.focus({ preventScroll: true });
+}
+$('cookStepsDialog').addEventListener('close', () => {
+  if (!$('cookStepsDialog').open) $('cookStepsContent').replaceChildren();
+  syncAlarm();
+});
 function currentTask() {
   const session = store.state.current?.session;
   return graph?.byId.get(selectedTaskId) || graph?.tasks.find(t => ['running', 'elapsed'].includes(session?.tasks[t.id]?.status))
@@ -169,6 +196,7 @@ function syncAlarm() {
     clearInterval(alarmInterval); alarmInterval = null; return;
   }
   if (!alarmInterval) { browser.beep(); alarmInterval = setInterval(browser.beep, 1400); }
+  if ($('cookStepsDialog').open) $('cookStepsDialog').close();
   if (document.querySelector('dialog[open]:not(#alarmDialog)')) return;
   const row = pending.find(t => t.id === alarmId && t.legacy === alarmLegacy) || pending[0];
   alarmId = row.id; alarmLegacy = row.legacy;
@@ -296,7 +324,8 @@ document.addEventListener('click', event => {
       case 'start-task': await startTask(id); break;
       case 'complete-task': await completeTask(id); break;
       case 'next-ready': nextReady(); break;
-      case 'select-task': selectedTaskId = id; navigate('cook'); break;
+      case 'cook-steps': renderCookSteps(); $('cookStepsDialog').showModal(); break;
+      case 'select-task': $('cookStepsDialog').close(); selectedTaskId = id; navigate('cook'); break;
       case 'adjust-timer': act({ type: 'ADJUST', id, seconds: Number(target.dataset.seconds) }); break;
       case 'skip-task':
         if (await confirm('Für später überspringen?', 'Abhängige Schritte bleiben gesperrt. Vor dem Abschluss musst du diesen Schritt nachholen.', 'Für später markieren')) { act({ type: 'SKIP', id }); nextReady(); } break;

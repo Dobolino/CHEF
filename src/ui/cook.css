@@ -1,0 +1,141 @@
+/* The cooking workspace fits the screen; only its instruction and step list scroll. */
+body[data-cooking="focus"] {
+  height: 100dvh;
+  overflow: hidden;
+}
+body[data-cooking="focus"] .shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 1440px;
+  padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+}
+body[data-cooking="focus"] .topbar {
+  flex: none;
+  position: static;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 0;
+  gap: 12px;
+  padding: calc(var(--safe-top) + 10px) 0 10px;
+}
+body[data-cooking="focus"] .brand,
+body[data-cooking="focus"] .footer,
+body[data-cooking="focus"] .update-banner,
+body[data-cooking="focus"] .navigation a:not([href="#overview"]):not([href="#cook"]) {
+  display: none;
+}
+body[data-cooking="focus"] .navigation {
+  grid-area: 1 / 1;
+  display: flex;
+  width: auto;
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+body[data-cooking="focus"] .navigation a {
+  flex-direction: row;
+  min-width: 0;
+  min-height: 44px;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+body[data-cooking="focus"] .navigation svg { width: 16px; height: 16px; }
+body[data-cooking="focus"] #connectionStatus { grid-area: 1 / 2; }
+body[data-cooking="focus"] .timer-rail {
+  flex: none;
+  position: static;
+  padding-block: 8px;
+}
+body[data-cooking="focus"] #main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+}
+body[data-cooking="focus"] #viewRoot {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+body[data-cooking="focus"] #viewRoot > .warning {
+  flex: none;
+  max-height: 15dvh;
+  overflow: auto;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.cook-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 1100px;
+  gap: 10px;
+  margin-inline: auto;
+}
+.cook-toolbar { display: flex; align-items: center; gap: 12px; min-height: 44px; flex: none; }
+.cook-toolbar .actions { flex: none; gap: 8px; }
+.cook-toolbar button { min-height: 44px; padding: 8px 12px; font-size: 13px; }
+.cook-progress { flex: 1; min-width: 0; }
+.cook-progress strong { display: block; font-size: 13px; }
+.cook-progress > span { display: block; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body[data-cooking="focus"] .cook-focus {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.cook-focus-head { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.cook-focus-head .tag { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cook-focus-head .pill { flex: none; }
+.cook-step-body { min-height: 0; overflow-y: auto; padding: 20px 24px; overscroll-behavior: contain; scrollbar-width: thin; }
+body[data-cooking="focus"] .cook-instruction { font-size: clamp(26px, 3.5vw, 44px); line-height: 1.22; margin: 0 0 18px; }
+.cook-step-body .ingredient-chips { margin: 14px 0; }
+.cook-step-body details p { font-size: 13px; }
+.cook-options { margin-top: 14px; }
+.cook-action-bar { display: flex; flex-direction: column; gap: 10px; padding: 12px 20px 16px; border-top: 1px solid var(--line); background: var(--surface); }
+.cook-action-bar .timer-controls { margin: 0; flex-wrap: nowrap; gap: 8px; }
+.cook-action-bar .timer-controls button { min-width: 44px; min-height: 44px; padding: 8px; font-size: 13px; white-space: nowrap; }
+.cook-action-bar .big-timer { min-width: 0; font-size: 38px; line-height: 1.2; }
+body[data-cooking="focus"] .cook-primary { position: static; min-height: 64px; margin: 0; width: 100%; box-shadow: none; }
+.cook-secondary { min-height: 44px; }
+.cook-manual { color: var(--muted); font-size: 12px; }
+.cook-steps-dialog { width: min(650px, calc(100% - 24px)); max-height: calc(100dvh - var(--safe-top) - 24px); padding: 0; }
+.cook-steps-dialog[open] { display: flex; flex-direction: column; }
+.cook-steps-dialog > header { display: flex; align-items: center; justify-content: space-between; flex: none; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.cook-steps-dialog h2 { margin: 0; }
+.cook-steps-list { padding: 16px 20px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; scrollbar-width: thin; }
+.cook-steps-list > p { margin: 0 0 12px; }
+@media (max-width: 600px) {
+  body[data-cooking="focus"] .navigation a { padding: 8px; font-size: 12px; }
+  body[data-cooking="focus"] #connectionStatus { font-size: 9px; padding-inline: 6px; }
+  .cook-toolbar { gap: 8px; }
+  .cook-toolbar .actions { gap: 6px; }
+  .cook-toolbar button { padding-inline: 10px; font-size: 12px; }
+  .cook-progress strong { font-size: 12px; }
+  .cook-focus-head { padding: 10px 14px; gap: 8px; }
+  .cook-focus-head .tag { font-size: 11px; }
+  .cook-step-body { padding: 16px; }
+  .cook-action-bar { padding: 10px 14px 12px; gap: 8px; }
+  .cook-action-bar .big-timer { font-size: 32px; }
+  body[data-cooking="focus"] .cook-instruction { font-size: 26px; }
+}
+@media (min-width: 650px) and (max-height: 500px) {
+  body[data-cooking="focus"] .cook-focus { grid-template-columns: minmax(0, 1fr) 240px; grid-template-rows: auto minmax(0, 1fr); }
+  .cook-focus-head { grid-area: 1 / 1; padding-block: 8px; }
+  .cook-step-body { grid-area: 2 / 1; padding: 12px 16px; }
+  .cook-action-bar { grid-area: 1 / 2 / 3 / 3; min-height: 0; overflow-y: auto; justify-content: center; border-top: 0; border-left: 1px solid var(--line); gap: 6px; padding: 10px; }
+  .cook-action-bar .big-timer { font-size: 28px; }
+  .cook-action-bar .timer-controls button { font-size: 11px; }
+  body[data-cooking="focus"] .cook-primary { min-height: 56px; font-size: 15px; padding: 10px; }
+  .cook-secondary { padding: 8px; font-size: 12px; }
+  body[data-cooking="focus"] .cook-instruction { font-size: 24px; }
+}

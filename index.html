@@ -14,6 +14,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-32.png" type="image/png" sizes="32x32">
 <link rel="stylesheet" href="src/ui/app.css">
+<link rel="stylesheet" href="src/ui/cook.css">
 <title>CHEF · Wochenmenü</title>
 </head>
 <body>
@@ -35,6 +36,7 @@
 <footer class="footer"><span>Rezepte, Fortschritt und Menüarchiv bleiben in diesem Browser.</span><span id="wakeStatus"></span></footer>
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="cookStepsDialog" class="dialog cook-steps-dialog" aria-labelledby="cookStepsTitle"><header><h2 id="cookStepsTitle">Dein Ablauf</h2><button data-close="cookStepsDialog" aria-label="Schrittliste schließen">Schließen</button></header><div id="cookStepsContent" class="cook-steps-list" tabindex="0" role="region" aria-label="Alle Kochschritte"></div></dialog>
 <dialog id="confirmDialog" class="dialog"><form method="dialog"><h2 id="confirmTitle"></h2><p id="confirmBody"></p><div class="dialog-actions"><button value="cancel">Abbrechen</button><button id="confirmAccept" class="primary" value="accept">Bestätigen</button></div></form></dialog>
 <dialog id="alarmDialog" class="dialog alarm" aria-labelledby="alarmTitle"><span class="eyebrow">Timer abgelaufen</span><h2 id="alarmTitle"></h2><p id="alarmRecipe"></p><p>Garzustand oder Arbeitsschritt prüfen. Quittieren beendet nur den Alarm.</p><div class="dialog-actions"><button class="primary" id="ackTimer">Diesen Timer quittieren</button><button id="ackAllTimers">Alle Timer quittieren</button></div></dialog>
 <dialog id="importDialog" class="dialog wide" aria-labelledby="importTitle"><h2 id="importTitle">Menü prüfen</h2><div id="importPreview"></div><div class="dialog-actions"><button data-close="importDialog">Abbrechen</button><button id="acceptImport" class="primary">Menü übernehmen</button></div></dialog>

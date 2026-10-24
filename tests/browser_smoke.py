@@ -74,6 +74,12 @@ with sync_playwright() as p:
     page.locator('.navigation a[href="#cook"]').click()
     page.wait_for_function('document.body.dataset.view==="cook"')
     assert page.locator('.navigation a[aria-current="page"]').inner_text() == 'Kochmodus'
+    assert not page.locator('#cookStepsDialog').is_visible()
+    page.locator('[data-action="cook-steps"]').click()
+    page.locator('#cookStepsContent').evaluate('(e)=>e.scrollTop=200')
+    assert page.locator('#cookStepsContent').evaluate('(e)=>e.scrollTop')>0
+    assert page.evaluate('window.scrollY')==0
+    page.locator('[data-close="cookStepsDialog"]').click()
     page.locator('.navigation a[href="#overview"]').click()
     page.wait_for_function('document.body.dataset.view==="overview"')
     ok('Four navigation destinations work without shopping or kitchen setup')
@@ -129,16 +135,21 @@ with sync_playwright() as p:
     import_data(page, data)
     goto(page, 'prep'); page.locator('[data-action="all-ready"]').click()
     page.clock.install(time=datetime(2026,10,24,12,tzinfo=timezone.utc))
-    goto(page, 'plan')
-    page.locator('[data-action="select-task"][data-id="meal-a/wait"]').click()
+    goto(page, 'cook')
+    page.locator('[data-action="cook-steps"]').click()
+    page.locator('#cookStepsContent [data-action="select-task"][data-id="meal-a/wait"]').click()
+    assert not page.locator('#cookStepsDialog').is_visible()
     page.locator('[data-action="start-task"]').click()
-    goto(page, 'plan')
-    page.locator('[data-action="select-task"][data-id="meal-b/wait"]').click()
+    page.locator('[data-action="cook-steps"]').click()
+    page.locator('#cookStepsContent [data-action="select-task"][data-id="meal-b/wait"]').click()
     page.locator('[data-action="start-task"]').click()
     page.locator('.timer-chip').nth(1).wait_for()
     assert page.locator('.timer-chip').count() == 2
+    assert page.url.endswith('#cook')
+    page.locator('[data-action="cook-steps"]').click()
     page.clock.fast_forward(61000)
     page.locator('#alarmDialog').wait_for()
+    assert not page.locator('#cookStepsDialog').is_visible()
     first_title = page.locator('#alarmTitle').inner_text()
     page.locator('#ackTimer').click()
     page.wait_for_function("Object.values(JSON.parse(localStorage.getItem('chef.workspace.v2')).current.session.timers).filter(t=>t.state==='elapsed').length===1")
@@ -153,7 +164,7 @@ with sync_playwright() as p:
     ok('Two simultaneous alarms are acknowledged individually; elapsed timers do not finish the meal')
     for suffix in ['a','b']:
         goto(page, 'plan')
-        page.locator(f'[data-action="select-task"][data-id="meal-{suffix}/wait"]').click()
+        page.locator(f'#viewRoot [data-action="select-task"][data-id="meal-{suffix}/wait"]').click()
         page.locator('[data-action="complete-task"]').click()
         page.locator('[data-action="start-task"]').click()
         page.locator('[data-action="complete-task"]').click()
@@ -260,15 +271,44 @@ with sync_playwright() as p:
           return timer.top >= header.bottom-1;
         }''')
         geometry=page.evaluate('''() => {
-          const controls=[document.querySelector('.brand'),...document.querySelectorAll('.navigation a')];
+          const controls=[document.querySelector('.brand'),...document.querySelectorAll('.navigation a')].filter(e=>e.getClientRects().length);
           return {top:Math.min(...controls.map(e=>e.getBoundingClientRect().top)),
-            reachable:[...document.querySelectorAll('.navigation a')].every(e=>{
+            reachable:[...document.querySelectorAll('.navigation a')].filter(e=>e.getClientRects().length).every(e=>{
               const r=e.getBoundingClientRect();
               return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('a')===e;
             })};
         }''')
         assert geometry['top']>=inset+9 and geometry['reachable'],(inset,geometry)
     ok('Changing iPad status-bar insets keeps navigation reachable and the timer rail below the header')
+    page.evaluate('document.documentElement.style.removeProperty("--safe-top")')
+    long_menu=timer_fixture()
+    long_menu['recipes'][0]['tasks'][0]['instruction']='Garzustand prüfen. '+('Lange Anleitung mit einzelnen Handgriffen und Hinweisen.\n'*30)
+    import_data(page,long_menu)
+    page.set_viewport_size({'width':320,'height':568})
+    goto(page,'cook')
+    assert not page.locator('#cookStepsDialog').is_visible()
+    assert not page.locator('#viewRoot .task-item').count()
+    page.locator('[data-action="start-task"]').click()
+    step_body=page.locator('.cook-step-body')
+    step_body.evaluate('(e)=>e.scrollTop=200')
+    before_scroll=step_body.evaluate('(e)=>e.scrollTop')
+    assert before_scroll>0
+    page.locator('[data-action="adjust-timer"][data-seconds="60"]').click()
+    page.wait_for_timeout(100)
+    assert abs(step_body.evaluate('(e)=>e.scrollTop')-before_scroll)<2
+    assert page.evaluate('window.scrollY')==0
+    primary=page.locator('.cook-primary').bounding_box()
+    assert primary['y']>=0 and primary['y']+primary['height']<=568
+    ok('Long instructions scroll independently; timer changes preserve reading position and the main action stays visible')
+    page.locator('[data-action="cook-steps"]').click()
+    assert page.locator('#cookStepsContent .task-item').count()==4
+    page.locator('#cookStepsContent [data-id="meal-b/wait"]').click()
+    assert not page.locator('#cookStepsDialog').is_visible()
+    assert page.locator('.cook-instruction').inner_text()=='Garzustand B prüfen'
+    assert step_body.evaluate('(e)=>e.scrollTop')==0
+    assert page.locator('.timer-chip').count()==1
+    assert page.url.endswith('#cook')
+    ok('Optional step drawer changes the current task on the same page while existing timers keep running')
     legacy_context.close()
     for name,width,height in [('iphone-se',320,568),('iphone',390,844),('iphone-landscape',844,390),('ipad-landscape',1024,768),('ipad-portrait',768,1024)]:
         context = browser.new_context(viewport={'width':width,'height':height},is_mobile=True,has_touch=True)
@@ -279,9 +319,18 @@ with sync_playwright() as p:
               small:[...document.querySelectorAll('button,summary,.navigation a')].filter(x=>x.getClientRects().length&&!x.disabled).map(x=>({label:x.textContent.trim().slice(0,25),w:x.getBoundingClientRect().width,h:x.getBoundingClientRect().height})).filter(x=>x.w<44||x.h<44)})''')
             assert not geometry['overflow'],(name,route,'horizontal overflow')
             assert not geometry['small'],(name,route,geometry['small'])
+            if route=='cook':
+                focus_geometry=page.evaluate('''() => {
+                  const action=document.querySelector('.cook-primary').getBoundingClientRect();
+                  return {pageOverflow:document.documentElement.scrollHeight>innerHeight+1,
+                    actionVisible:action.top>=0&&action.bottom<=innerHeight,
+                    actionReachable:document.elementFromPoint(action.x+action.width/2,action.y+action.height/2)?.closest('button')?.classList.contains('cook-primary')};
+                }''')
+                assert not focus_geometry['pageOverflow'] and focus_geometry['actionVisible'] and focus_geometry['actionReachable'],(name,focus_geometry)
             results['layouts'].append({'viewport':name,'route':route,**geometry})
         if name=='ipad-landscape':
             goto(page,'overview');page.evaluate('window.scrollTo(0,0)');page.screenshot(path=str(OUT/'overview-ipad.png'),full_page=True)
+            goto(page,'cook');page.locator('[data-action="start-task"]').click();page.screenshot(path=str(OUT/'cooking-focus-ipad.png'))
         context.close()
     ok('Five mobile/tablet viewport sizes: five views fit and buttons have at least 44px targets')
     browser.close()
