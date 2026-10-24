@@ -1,0 +1,217 @@
+"""Browser integration checks against a running server; isolated browser storage."""
+import argparse
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--base-url', default='http://127.0.0.1:8000')
+args = parser.parse_args()
+BASE = args.base_url.rstrip('/')
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT/'test-results'
+OUT.mkdir(exist_ok=True)
+results = {'passed': [], 'layouts': [], 'page_errors': []}
+
+def ok(message):
+    results['passed'].append(message)
+    print('PASS:', message, flush=True)
+
+def snapshot(page):
+    return page.evaluate("JSON.parse(localStorage.getItem('chef.workspace.v2'))")
+
+def goto(page, route):
+    page.goto(BASE+'/index.html#'+route, wait_until='networkidle')
+    page.wait_for_function('(route)=>document.body.dataset.view===route', arg=route)
+
+def accept_confirmation(page):
+    page.locator('#confirmAccept').click()
+    page.locator('#confirmDialog').wait_for(state='hidden')
+
+def import_data(page, document):
+    page.locator('#fileInput').set_input_files({'name': 'menu.json', 'mimeType': 'application/json', 'buffer': json.dumps(document, ensure_ascii=False).encode()})
+    page.locator('#importDialog').wait_for()
+    assert page.locator('#acceptImport').is_enabled()
+    page.locator('#acceptImport').click()
+    if page.locator('#confirmDialog').is_visible(): accept_confirmation(page)
+    page.locator('#importDialog').wait_for(state='hidden')
+    page.wait_for_function('document.body.dataset.view==="overview"')
+
+def timer_fixture():
+    recipes = []
+    for suffix, portions in [('a', 2), ('b', 3)]:
+        recipes.append({'id': 'meal-'+suffix, 'revision': 1, 'name': 'Testgericht '+suffix.upper(), 'baseServings': portions,
+            'ingredients': [{'id': 'onion', 'foodId': 'onion', 'name': 'Zwiebel', 'quantity': {'kind':'exact','value':100,'unit':'g'}}],
+            'tasks': [
+                {'id':'wait','instruction':'Garzustand '+suffix.upper()+' prüfen','phase':'cook','mode':'passive','duration':{'seconds':60,'scaling':'fixed'},'dependsOn':[],'uses':[]},
+                {'id':'pack','instruction':'Gericht '+suffix.upper()+' portionieren','phase':'pack','mode':'active','duration':{'seconds':30,'scaling':'fixed'},'dependsOn':['wait'],'uses':[]}
+            ],
+            'reservations':[{'id':'pot','kind':'pot','units':1,'fromTask':'wait','throughTask':'pack'}],
+            'storage':{'freezable':True,'notes':['Hinweis aus Testdaten']},
+            'packaging':{'containersPerServing':1,'separateComponents':['Sauce'] if suffix=='a' else []}})
+    return {'schemaVersion':'2.0','title':'Testmenü','recipes':recipes,
+        'selection':[{'recipeId':r['id'],'servings':r['baseServings']} for r in recipes],
+        'kitchen':{'cooks':1,'resources':[{'id':'pot-1','kind':'pot','capacity':1},{'id':'pot-2','kind':'pot','capacity':1}]}}
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(executable_path=os.environ.get('CHEF_CHROMIUM', '/usr/bin/chromium'), headless=True, args=['--no-sandbox'])
+    context = browser.new_context(viewport={'width':390,'height':844}, timezone_id='Europe/Zurich')
+    page = context.new_page()
+    page.on('pageerror', lambda error: results['page_errors'].append(str(error)))
+    goto(page, 'overview')
+    assert page.locator('.recipe').count() == 3
+    page.evaluate('window.scrollTo(0,0)')
+    page.screenshot(path=str(OUT/'overview-iphone.png'), full_page=True)
+    page.locator('[data-action="portion"][data-id="tuerkische-haehnchen-bowl"][data-delta="1"]').click()
+    page.wait_for_function("JSON.parse(localStorage.getItem('chef.workspace.v2')).current.document.selection[0].servings===6")
+    assert snapshot(page)['current']['document']['selection'][1]['servings'] == 5
+    ok('Three recipes load; portions change independently')
+    page.locator('[data-action="kitchen"]').click()
+    page.locator('[name="pot"]').fill('1')
+    page.locator('#kitchenForm button[type="submit"]').click()
+    page.locator('#kitchenDialog').wait_for(state='hidden')
+    assert len([r for r in snapshot(page)['current']['document']['kitchen']['resources'] if r['kind']=='pot']) == 1
+    goto(page, 'plan')
+    assert page.locator('.schedule-list>li').count() > 30
+    assert not page.get_by_text('Kein ausführbarer Ablauf gefunden', exact=False).count()
+    ok('One-pot kitchen setting produces a complete plan')
+    goto(page, 'shopping')
+    onions = page.locator('.checkrow').filter(has=page.locator('.item-name', has_text='Zwiebel')).first
+    onions.locator('[data-pantry]').fill('1')
+    onions.locator('[data-pantry]').press('Tab')
+    page.wait_for_timeout(100)
+    onions.locator('[data-bought]').check()
+    assert any(value is not False for value in snapshot(page)['current']['checks']['bought'].values())
+    ok('Shopping aggregates ingredients and keeps pantry quantities separate')
+    goto(page, 'prep')
+    page.locator('[data-action="all-ready"]').click()
+    page.wait_for_timeout(100)
+    assert all(snapshot(page)['current']['checks']['ready'].values())
+    goto(page, 'cook')
+    page.locator('[data-action="start-task"]').click()
+    page.locator('.timer-chip').wait_for()
+    initial = snapshot(page)['current']['session']
+    timer_id = next(iter(initial['timers']))
+    page.locator('[data-action="adjust-timer"][data-seconds="60"]').click()
+    page.wait_for_timeout(100)
+    deadline = snapshot(page)['current']['session']['timers'][timer_id]['endsAt']
+    assert deadline == initial['timers'][timer_id]['endsAt']+60000
+    page.locator('.timer-chip').focus()
+    page.wait_for_timeout(1200)
+    assert page.evaluate('document.activeElement.classList.contains("timer-chip")')
+    ok('Timer extension preserves deadline arithmetic; timer rail retains keyboard focus')
+    page.goto(BASE+'/kochmodus.html#mise', wait_until='networkidle')
+    assert snapshot(page)['current']['session']['timers'][timer_id]['endsAt'] == deadline
+    assert snapshot(page)['current']['checks']['ready']
+    goto(page, 'cook')
+    page.reload(wait_until='networkidle')
+    assert snapshot(page)['current']['session']['timers'][timer_id]['endsAt'] == deadline
+    assert page.locator('.timer-chip').count() == 1
+    page.evaluate('window.scrollTo(0,0)')
+    page.screenshot(path=str(OUT/'cooking-iphone.png'))
+    ok('Preparation compatibility URL, view changes and reload retain progress and timers')
+    before = page.evaluate("localStorage.getItem('chef.workspace.v2')")
+    page.locator('#fileInput').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':b'{"schemaVersion":"2.0"}'})
+    page.locator('#importDialog').wait_for()
+    assert page.locator('#acceptImport').is_disabled()
+    assert page.evaluate("localStorage.getItem('chef.workspace.v2')") == before
+    page.locator('[data-close="importDialog"]').click()
+    ok('Invalid import gives a reviewable error and preserves the entire previous snapshot')
+    data = timer_fixture()
+    data['recipes'][0]['name']='<img src=x onerror="window.CHEF_PWNED=true">'
+    import_data(page, data)
+    assert page.locator('#viewRoot img').count() == 0
+    assert page.evaluate('window.CHEF_PWNED===undefined')
+    assert '<img' in page.locator('.recipe h2').first.inner_text()
+    ok('Imported names render as text rather than executable HTML')
+    data = timer_fixture()
+    import_data(page, data)
+    goto(page, 'prep'); page.locator('[data-action="all-ready"]').click()
+    page.clock.install(time=datetime(2026,10,24,12,tzinfo=timezone.utc))
+    goto(page, 'plan')
+    page.locator('[data-action="select-task"][data-id="meal-a/wait"]').click()
+    page.locator('[data-action="start-task"]').click()
+    goto(page, 'plan')
+    page.locator('[data-action="select-task"][data-id="meal-b/wait"]').click()
+    page.locator('[data-action="start-task"]').click()
+    page.locator('.timer-chip').nth(1).wait_for()
+    assert page.locator('.timer-chip').count() == 2
+    page.clock.fast_forward(61000)
+    page.locator('#alarmDialog').wait_for()
+    first_title = page.locator('#alarmTitle').inner_text()
+    page.locator('#ackTimer').click()
+    page.wait_for_function("Object.values(JSON.parse(localStorage.getItem('chef.workspace.v2')).current.session.timers).filter(t=>t.state==='elapsed').length===1")
+    page.wait_for_timeout(100)
+    assert page.locator('#alarmDialog').is_visible()
+    assert page.locator('#alarmTitle').inner_text() != first_title
+    page.locator('#ackTimer').click()
+    page.locator('#alarmDialog').wait_for(state='hidden')
+    assert snapshot(page)['current']['session']['tasks']['meal-a/wait']['status'] == 'elapsed'
+    goto(page, 'finish')
+    assert page.get_by_role('heading',name='Es sind noch Schritte offen.').is_visible()
+    ok('Two simultaneous alarms are acknowledged individually; elapsed timers do not finish the meal')
+    for suffix in ['a','b']:
+        goto(page, 'plan')
+        page.locator(f'[data-action="select-task"][data-id="meal-{suffix}/wait"]').click()
+        page.locator('[data-action="complete-task"]').click()
+        page.locator('[data-action="start-task"]').click()
+        page.locator('[data-action="complete-task"]').click()
+    page.wait_for_function('document.body.dataset.view==="finish"')
+    assert page.get_by_role('heading',name='Gut gekocht. Gut vorbereitet.').is_visible()
+    page.locator('[data-pack-mass]').first.fill('500')
+    page.locator('[data-pack-mass]').first.press('Tab')
+    page.wait_for_timeout(100)
+    assert '250 g' in page.locator('#viewRoot').inner_text()
+    assert '5 Hauptbehälter' in page.locator('#viewRoot').inner_text()
+    assert 'Keine geprüfte Kühlschrankdauer' in page.locator('#viewRoot').inner_text()
+    ok('Full task flow finishes explicitly and calculates boxes and measured portion weights')
+    goto(page, 'overview')
+    page.locator('details.tools').evaluate('(d)=>d.open=true')
+    with page.expect_download() as download: page.locator('[data-action="export"]').click()
+    assert json.loads(Path(download.value.path()).read_text()) == snapshot(page)['current']['document']
+    with page.expect_download() as download: page.locator('[data-action="backup"]').click()
+    backup = json.loads(Path(download.value.path()).read_text())
+    assert backup['kind'] == 'chef-backup'
+    import_data(page, backup)
+    assert snapshot(page)['current']['session']['cookedAt']
+    goto(page, 'archive')
+    assert page.locator('.archive-card').count() >= 2
+    page.locator('[data-action="favorite"]').first.click()
+    page.wait_for_timeout(100)
+    assert page.locator('[data-action="favorite"][aria-pressed="true"]').count() == 1
+    ok('Menu export, full backup restore and archive favorites preserve data')
+    page.evaluate('navigator.serviceWorker.ready')
+    page.reload(wait_until='networkidle')
+    assert page.evaluate('!!navigator.serviceWorker.controller')
+    page.evaluate("caches.open('unrelated-cache')")
+    context.set_offline(True)
+    goto(page, 'overview')
+    assert page.locator('.recipe').count() == 2
+    page.goto(BASE+'/kochmodus.html',wait_until='networkidle')
+    assert page.get_by_role('heading',name='Dein Menü ist gekocht.').is_visible()
+    assert 'unrelated-cache' in page.evaluate('caches.keys()')
+    context.set_offline(False)
+    ok('Offline reload and compatibility navigation use the complete cached app')
+    context.close()
+
+    for name,width,height in [('iphone-se',320,568),('iphone',390,844),('iphone-landscape',844,390),('ipad-landscape',1024,768),('ipad-portrait',768,1024)]:
+        context = browser.new_context(viewport={'width':width,'height':height},is_mobile=True,has_touch=True)
+        page=context.new_page();page.on('pageerror',lambda error:results['page_errors'].append(str(error)))
+        for route in ['overview','shopping','prep','cook','plan','archive']:
+            goto(page,route)
+            geometry=page.evaluate('''() => ({overflow:document.documentElement.scrollWidth>innerWidth+1,
+              small:[...document.querySelectorAll('button,summary,.navigation a')].filter(x=>x.getClientRects().length&&!x.disabled).map(x=>({label:x.textContent.trim().slice(0,25),w:x.getBoundingClientRect().width,h:x.getBoundingClientRect().height})).filter(x=>x.w<44||x.h<44)})''')
+            assert not geometry['overflow'],(name,route,'horizontal overflow')
+            assert not geometry['small'],(name,route,geometry['small'])
+            results['layouts'].append({'viewport':name,'route':route,**geometry})
+        if name=='ipad-landscape':
+            goto(page,'overview');page.evaluate('window.scrollTo(0,0)');page.screenshot(path=str(OUT/'overview-ipad.png'),full_page=True)
+        context.close()
+    ok('Five mobile/tablet viewport sizes: six views fit and buttons have at least 44px targets')
+    browser.close()
+
+assert not results['page_errors'],results['page_errors']
+(OUT/'browser-results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2))
+print(f"Completed {len(results['passed'])} browser workflow checks and {len(results['layouts'])} layout checks without page errors.",flush=True)

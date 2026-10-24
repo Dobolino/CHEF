@@ -1,0 +1,766 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CHEF meal-prep input proposal v2.0",
+  "description": "CHEF v2 import contract. Semantic references and scheduling constraints are validated by the app.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "2.0"
+    },
+    "recipes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/recipe"
+      },
+      "minItems": 1,
+      "maxItems": 32
+    },
+    "selection": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "recipeId": {
+            "$ref": "#/$defs/id"
+          },
+          "servings": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "recipeId",
+          "servings"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 32
+    },
+    "kitchen": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cooks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/resource"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "cleaningSeconds": {
+          "type": "integer",
+          "minimum": 15,
+          "maximum": 1800
+        }
+      },
+      "required": [
+        "cooks",
+        "resources"
+      ]
+    },
+    "week": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "weekNote": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 160
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "recipes",
+    "selection",
+    "kitchen"
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,79}$"
+    },
+    "quantity": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "exact"
+            },
+            "value": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000000
+            },
+            "unit": {
+              "enum": [
+                "g",
+                "kg",
+                "ml",
+                "l",
+                "tsp",
+                "tbsp",
+                "piece",
+                "clove",
+                "can",
+                "bunch"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "value",
+            "unit"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "toTaste"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unknown"
+            },
+            "note": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "kind",
+            "note"
+          ]
+        }
+      ]
+    },
+    "ingredient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "foodId": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "quantity": {
+          "$ref": "#/$defs/quantity"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "allergens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "category": {
+          "enum": [
+            "produce",
+            "protein",
+            "dairy",
+            "dry",
+            "canned",
+            "spices",
+            "oils",
+            "other"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "foodId",
+        "name",
+        "quantity"
+      ]
+    },
+    "duration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "scaling": {
+          "enum": [
+            "fixed",
+            "linear",
+            "batches"
+          ]
+        },
+        "batchCapacityServings": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "seconds",
+        "scaling"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scaling": {
+                "const": "batches"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "batchCapacityServings"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "batchCapacityServings"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "use": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ingredientId": {
+          "$ref": "#/$defs/id"
+        },
+        "role": {
+          "enum": [
+            "prepare",
+            "consume",
+            "transfer"
+          ]
+        },
+        "fraction": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "quantity": {
+          "$ref": "#/$defs/quantity"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 300
+        }
+      },
+      "required": [
+        "ingredientId",
+        "role"
+      ]
+    },
+    "prep": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ingredientId": {
+          "$ref": "#/$defs/id"
+        },
+        "operation": {
+          "enum": [
+            "wash",
+            "peel",
+            "dice",
+            "slice",
+            "weigh"
+          ]
+        },
+        "resultSpec": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "hygieneGroup": {
+          "enum": [
+            "produce",
+            "rawMeat",
+            "rawFish",
+            "readyToEat"
+          ]
+        },
+        "mergeAllowed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ingredientId",
+        "operation",
+        "resultSpec",
+        "hygieneGroup",
+        "mergeAllowed"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "phase": {
+          "enum": [
+            "prep",
+            "cook",
+            "cool",
+            "pack"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "active",
+            "passive"
+          ]
+        },
+        "instruction": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "shortLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "duration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/duration"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 512,
+          "uniqueItems": true
+        },
+        "uses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/use"
+          },
+          "minItems": 0,
+          "maxItems": 512
+        },
+        "prep": {
+          "$ref": "#/$defs/prep"
+        },
+        "tip": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "sourceText": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "id",
+        "phase",
+        "mode",
+        "instruction",
+        "duration",
+        "dependsOn",
+        "uses"
+      ]
+    },
+    "ovenSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "temperatureC": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
+        },
+        "mode": {
+          "enum": [
+            "fan",
+            "topBottom",
+            "grill"
+          ]
+        }
+      },
+      "required": [
+        "temperatureC",
+        "mode"
+      ]
+    },
+    "reservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "pot",
+            "pan",
+            "hob",
+            "oven",
+            "tray",
+            "board",
+            "worktop",
+            "coolingSpace",
+            "knife"
+          ]
+        },
+        "units": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "fromTask": {
+          "$ref": "#/$defs/id"
+        },
+        "throughTask": {
+          "$ref": "#/$defs/id"
+        },
+        "minVolumeMlAtBase": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "ovenSettings": {
+          "$ref": "#/$defs/ovenSettings"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "units",
+        "fromTask",
+        "throughTask"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "oven"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "ovenSettings"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "ovenSettings"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "pot",
+            "pan",
+            "hob",
+            "oven",
+            "tray",
+            "board",
+            "worktop",
+            "coolingSpace",
+            "knife"
+          ]
+        },
+        "capacity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "volumeMl": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "supportedModes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "fan",
+              "topBottom",
+              "grill"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "capacity"
+      ]
+    },
+    "nutrition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "const": "perServing"
+        },
+        "energyKcal": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "proteinG": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "carbsG": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "fatG": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "fiberG": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "basis"
+      ]
+    },
+    "storagePeriod": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 87600
+        },
+        "conditions": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "maxHours",
+        "conditions",
+        "source",
+        "reviewedAt"
+      ]
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "freezable": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "refrigerated": {
+          "$ref": "#/$defs/storagePeriod"
+        },
+        "frozen": {
+          "$ref": "#/$defs/storagePeriod"
+        }
+      },
+      "required": []
+    },
+    "packaging": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "containersPerServing": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "separateComponents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "minItems": 0,
+          "maxItems": 16
+        },
+        "portionMassG": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "combineWithRecipeId": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [
+        "containersPerServing"
+      ]
+    },
+    "recipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "baseServings": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ingredient"
+          },
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/task"
+          },
+          "minItems": 1,
+          "maxItems": 512
+        },
+        "reservations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reservation"
+          },
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "nutrition": {
+          "$ref": "#/$defs/nutrition"
+        },
+        "storage": {
+          "$ref": "#/$defs/storage"
+        },
+        "packaging": {
+          "$ref": "#/$defs/packaging"
+        },
+        "role": {
+          "enum": [
+            "main",
+            "side"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "name",
+        "baseServings",
+        "ingredients",
+        "tasks",
+        "reservations"
+      ]
+    }
+  }
+}

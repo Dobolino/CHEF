@@ -1,0 +1,99 @@
+# CHEF
+
+Eine lokale Meal-Prep-PWA mit gemeinsamem Ablauf für mehrere Gerichte. Vanilla JavaScript und ES-Module, kein Backend und kein Konto. Das Beispielmenü enthält drei Gerichte, gemeinsame Zwiebelvorbereitung und eine explizite Brett-/Messerreinigung nach rohem Hähnchen.
+
+## Entwickeln und prüfen
+
+Voraussetzungen: Node.js 22 oder neuer, npm und Python 3 für den lokalen HTTP-Server.
+
+```sh
+npm ci
+npm run build
+npm test
+npm start
+```
+
+Der Server verwendet Port 8000 auf `127.0.0.1`. HTTP auf localhost oder HTTPS sind erforderlich; direktes Öffnen der HTML-Datei reicht für Module und Offline-Funktionen nicht. Der Cloud-Onboarding-Client unterstützt keine öffentlichen localhost-Vorschau-Links.
+
+Der Build erzeugt aus dem Schema einen lokal gebündelten Ajv-Validator und einen versionierten Service Worker. Generierte Dateien sind eingecheckt, damit die vorbereitete App ohne CDN funktioniert. Nach Änderungen an Schema oder App-Assets erneut bauen und die neue Version im Browser aktivieren. Der Build verändert keine Rezeptdaten.
+
+Browserprüfungen mit einem laufenden Server:
+
+```sh
+python3 -m pip install -r requirements-test.txt
+python3 tests/browser_smoke.py
+```
+
+Die Cloud-Umgebung enthält Python Playwright und `/usr/bin/chromium`. Auf anderen Maschinen Chromium zusätzlich installieren und bei Bedarf `CHEF_CHROMIUM` setzen. Die Prüfungen verwenden eigene Browser-Kontexte und schreiben nach `test-results/`. `node test-scheduler.js` bleibt als Einstieg für die Planungstests erhalten.
+
+## Bedienung
+
+1. **Wochenmenü:** Gerichte und Portionen je Gericht wählen. Unter „Küche einstellen“ den tatsächlichen Gerätebestand eintragen. Während des Kochens bleiben diese Daten fest; ein neuer Kochabend archiviert den alten Stand.
+2. **Einkauf:** Vorratsmengen eintragen, verbleibenden Bedarf abhaken, teilen oder drucken. Erst jedes Rezept skalieren, dann gleiche Produkte mit kompatiblen Einheiten addieren. Einkaufshäkchen und Bereitstellhäkchen haben unterschiedliche Bedeutungen.
+3. **Vorbereiten:** Zutaten und Geräte bestätigen. Die eigentlichen Vorbereitungsarbeiten und Wartezeiten sind Teil des gemeinsamen Kochplans.
+4. **Kochen:** Aufgabe starten, ausführen und bestätigen. Während passiver Zeit „Währenddessen weiter“ nutzen. Alarme quittieren nur die Erinnerung; ein Garprozess ist erst nach ausdrücklicher Prüfung abgeschlossen.
+5. **Abschluss:** Behälter und separate Saucenbecher zuordnen; optional ein gemessenes Gesamtgewicht eingeben. Fehlende Haltbarkeitsangaben werden nicht geschätzt.
+
+Die angezeigte Dauer bis zum Portionieren umfasst die modellierten Phasen. Nicht modellierte Abkühl-/Lagerungsschritte sind nicht automatisch erledigt; sie lassen sich als `cool`-Tasks aufnehmen. Vorbereitungszeiten des Beispielmenüs sind gekennzeichnete Schätzwerte.
+
+## Format und Import
+
+Der Vertrag liegt in [schemas/menu.v2.schema.json](schemas/menu.v2.schema.json):
+
+- `recipes`: 1–32 Rezepte mit Basisportionen, Zutaten, Aufgaben und Gerätebindungen.
+- `selection`: ausgewählte Rezept-IDs mit eigenen Zielportionen.
+- `kitchen`: kochende Personen und tatsächliche Ressourcen einschließlich Größe und Ofen-Betriebsart.
+
+Rezeptimporte sind auf 1 MB, Quellaufgaben auf 2048 und nach Batch-Aufteilung erzeugte Aufgaben auf 4096 begrenzt. Dies sind Schutzgrenzen, keine Leistungszusage für maximal große Menüs.
+
+Mengen sind Zahlen mit Einheit: `0.5` statt `"1/2"`. Doppelte JSON-Schlüssel, doppelte IDs, ungültige Referenzen, unbekannte Felder und Abhängigkeitskreise werden abgewiesen. Unbekannte Mengen (`quantity.kind: "unknown"`) oder Zeiten (`duration: null`) bleiben als Entwurf importierbar, verhindern aber bei erforderlichen Angaben die automatische Planung. Zeiten lassen sich in den Rezeptdetails ergänzen, vollständige Daten unter „Rezeptdaten bearbeiten“.
+
+Eine Vorschau ersetzt Daten erst nach Übernahme. Das vorherige Menü wird archiviert. Archivierte Timer behalten ihre Endzeitpunkte, lösen aber keine Alarme aus. Darauf weist die App beim Wechsel eines laufenden Vorgangs ausdrücklich hin. Zum Weiterkochen den alten Stand wiederherstellen.
+
+Formate 1.0–1.3 und das frühere unversionierte Format werden kontrolliert übernommen. `examples/legacy-menu.json` erhält die vorherige Rezeptdatei. Der Adapter schätzt keine fehlenden Vorbereitungszeiten und erzeugt konservative Abhängigkeiten. Alte Browser-Schlüssel werden nicht gelöscht; Rohfortschritt und Häkchen bleiben zusätzlich gesichert, alte Timer werden sichtbar übernommen. Ein alter, nach Seitenzahlen geführter Zustand wird ohne vollständige Zeiten und Fachabhängigkeiten nicht als fertiger neuer Ablaufplan ausgegeben.
+
+## Planungsregeln
+
+`dependsOn` bedeutet vollständigen Abschluss eines Vorgängers. Aktive Tasks belegen eine Person, passive Tasks nicht. Geräte bleiben vom Beginn von `fromTask` bis zum Ende von `throughTask` reserviert. So kann eine Herdplatte frei werden, während ihr Topf noch Essen enthält.
+
+Ein physischer Ofen erlaubt nur kompatible Temperatur und Betriebsart gleichzeitig. Mehrere Einschübe sind keine unabhängigen Temperaturzonen. Vorheizen und Temperaturwechsel müssen im Rezept modelliert sein.
+
+Vier deterministische Varianten werden verglichen, darunter ein serieller Kandidat gegen bestimmte Hold-and-wait-Sackgassen. Der kürzeste gefundene gültige Plan wird gewählt; globale Optimalität wird nicht behauptet. Unauflösbare Gerätebindungen werden erklärt.
+
+Vorbereitungen werden bei passender Operation, Produktidentität, Schnittbild, Hygienegruppe, Allergenen, Einheiten und einfachen Geräteansprüchen zusammengefasst. Aktuell betrifft dies unabhängige Wurzelaufgaben. Die Dauer bleibt konservativ die Summe der Einzelzeiten; Teilmengen je Ursprungsrezept bleiben erhalten.
+
+`duration.scaling`:
+
+- `fixed`: gleichbleibender Planwert.
+- `linear`: proportional zu Ziel-/Basisportionen.
+- `batches`: Dauer je Durchgang; `batchCapacityServings` ist Pflicht. Der Compiler erzeugt aufeinanderfolgende Durchgänge und teilt Mengen auf.
+
+Strukturierte rohe Fleisch-/Fischvorbereitung braucht eigene Brett- und Messerreservierungen. Diese reichen bis zum automatisch ergänzten, zu bestätigenden Reinigungsschritt. Sein Planwert stammt aus `kitchen.cleaningSeconds`, standardmäßig einer Minute; das ist keine Zusicherung, dass eine bestimmte Zeit immer für die Reinigung genügt.
+
+Die Vorhersage plant offene Aufgaben ab dem aktuellen Stand neu. Tatsächliche Startzeiten, laufende Timer und übernommene Geräte bleiben erhalten. Übersprungene Aufgaben erfüllen keine Voraussetzungen ihrer Nachfolger.
+
+## Speicherung, Archiv und Offline
+
+Der lokale Snapshot liegt unter `chef.workspace.v2`. Fehlgeschlagenes Speichern erhält den vorherigen gespeicherten und sichtbaren Stand. Veraltete Tabs werden vor dem Schreiben erkannt; einen Kochabend vorzugsweise in einem aktiven Tab bearbeiten.
+
+Das Archiv enthält maximal 30 Stände und löscht keine automatisch. Favoriten können markiert werden. Wiederherstellen übernimmt Fortschritt; „Als neuen Kochabend laden“ beginnt mit leerem Fortschritt. Vollständige Datensicherungen sind exportierbar und über denselben Import wiederherstellbar. Sicherungen bis 10 MB werden geprüft. Browserbereinigung kann lokale Daten entfernen, deshalb eigene Sicherungen aufbewahren.
+
+Nach der ersten erfolgreichen Offline-Vorbereitung sind HTML, Module, Validator, Rezepte und Icons lokal verfügbar. Der Service Worker liefert eine zusammenhängende App-Version. Updates werden angeboten und während eines begonnenen Kochvorgangs zurückgestellt. Nur eigene Caches werden bereinigt.
+
+Audio, Wake Lock und Sprache hängen vom Browser ab. Wake Lock wird bei Bedarf neu angefordert, Fehlschläge werden angezeigt. Vorlesen und optionale Sprachbefehle ergänzen die Tasten. Spracherkennung kann Audio an einen Dienst des Browseranbieters senden. Ein suspendierter oder gesperrter Browser garantiert keine Hintergrundalarme; physische iOS-Safari-/Standby-Tests bleiben erforderlich.
+
+## Codeaufteilung
+
+```text
+src/data/       JSON-Import, Schema/Semantik, Altformat, Mengen
+src/planning/   Graph, Vorbereitung, Ressourcen, Planung
+src/session/    Zustandsübergänge, Timer, Speicherung, Archiv
+src/ui/         Ansichten und responsive Gestaltung
+src/platform/   Audio, Sprache, Wake Lock, Teilen, Downloads
+src/app.js      Router und Integration
+schemas/       versionierter Eingabevertrag
+tests/         Node-Tests und Browser-Abläufe
+scripts/       Validator-/Offline-Build und Beispieldaten
+```
+
+`REVIEW.md` und `CURSOR_REVIEW.md` dokumentieren die frühere Version. Maßgeblich für den aktuellen Aufbau sind README, Schema und Tests.

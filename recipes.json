@@ -1,695 +1,1649 @@
 {
-  "schemaVersion": "1.3",
-  "week": "2026-W33",
+  "schemaVersion": "2.0",
+  "weekNote": "Mengen je Gericht wählen, Geräte prüfen und Sauce separat verpacken. Vorbereitungszeiten sind Schätzwerte.",
   "recipes": [
     {
       "id": "tuerkische-haehnchen-bowl",
+      "revision": 1,
       "name": "Türkische Hähnchen-Bowl",
-      "servings": 5,
-      "freezable": true,
-      "macrosPerServing": {
-        "kcal": 540,
-        "protein_g": 38,
-        "carbs_g": 52,
-        "fat_g": 18,
-        "fiber_g": 7
-      },
-      "notes": [
-        "Joghurt-Sauce separat einpacken, sonst wird der Bulgur matschig.",
-        "Hähnchen portionsweise einfrieren, Sauce jede Woche frisch machen."
-      ],
+      "baseServings": 5,
       "ingredients": [
         {
           "id": "hb-ing-chicken",
+          "foodId": "legacy-food-1",
           "name": "Hähnchenbrust",
-          "amount": 750,
-          "unit": "g",
-          "category": "fleisch_fisch"
+          "quantity": {
+            "kind": "exact",
+            "value": 750,
+            "unit": "g"
+          },
+          "optional": false,
+          "category": "protein"
         },
         {
           "id": "hb-ing-joghurt",
+          "foodId": "legacy-food-2",
           "name": "Naturjoghurt",
-          "amount": 300,
-          "unit": "g",
-          "category": "milch_ei"
+          "quantity": {
+            "kind": "exact",
+            "value": 300,
+            "unit": "g"
+          },
+          "optional": false,
+          "category": "dairy"
         },
         {
           "id": "hb-ing-bulgur",
+          "foodId": "legacy-food-3",
           "name": "Bulgur",
-          "amount": 375,
-          "unit": "g",
-          "category": "trockenes"
+          "quantity": {
+            "kind": "exact",
+            "value": 375,
+            "unit": "g"
+          },
+          "optional": false,
+          "category": "dry"
         },
         {
           "id": "hb-ing-gurke",
+          "foodId": "legacy-food-4",
           "name": "Gurke",
-          "amount": 1,
-          "unit": "Stück",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "piece"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "hb-ing-tomaten",
+          "foodId": "legacy-food-5",
           "name": "Tomaten",
-          "amount": 3,
-          "unit": "Stück",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 3,
+            "unit": "piece"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "hb-ing-knoblauch",
+          "foodId": "legacy-food-6",
           "name": "Knoblauch",
-          "amount": 2,
-          "unit": "Zehen",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "clove"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "hb-ing-zitrone",
+          "foodId": "legacy-food-7",
           "name": "Zitrone",
-          "amount": 1,
-          "unit": "Stück",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "piece"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "hb-ing-paprika-edelsuess",
+          "foodId": "legacy-food-8",
           "name": "Paprika edelsüß",
-          "amount": 2,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "hb-ing-kreuzkuemmel",
+          "foodId": "legacy-food-9",
           "name": "Kreuzkümmel",
-          "amount": 1.5,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 1.5,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "hb-ing-sumach",
+          "foodId": "legacy-food-10",
           "name": "Sumach",
-          "amount": 1,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "hb-ing-salz",
+          "foodId": "legacy-food-11",
           "name": "Salz",
-          "amount": 1,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "hb-ing-pfeffer",
+          "foodId": "legacy-food-12",
           "name": "Pfeffer",
-          "amount": 0.5,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 0.5,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "hb-ing-oel",
+          "foodId": "legacy-food-13",
           "name": "Olivenöl",
-          "amount": 2,
-          "unit": "EL",
-          "category": "oele_saucen"
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "tbsp"
+          },
+          "optional": false,
+          "category": "oils"
         },
         {
           "id": "hb-ing-wasser-bulgur",
+          "foodId": "legacy-food-14",
           "name": "Wasser (für Bulgur)",
-          "amount": 750,
-          "unit": "ml",
-          "category": "sonstiges",
-          "optional": true
+          "quantity": {
+            "kind": "exact",
+            "value": 750,
+            "unit": "ml"
+          },
+          "optional": true,
+          "category": "other"
         }
       ],
-      "misEnPlace": [
+      "tasks": [
         {
           "id": "hb-mep-1",
-          "text": "Hähnchenbrust in 2cm Würfel schneiden",
-          "category": "schneiden",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Hähnchenbrust in 2cm Würfel schneiden",
+          "duration": {
+            "seconds": 240,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
-              "ingredientId": "hb-ing-chicken"
+              "ingredientId": "hb-ing-chicken",
+              "role": "prepare"
             }
-          ]
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen.",
+          "prep": {
+            "ingredientId": "hb-ing-chicken",
+            "operation": "dice",
+            "resultSpec": "20-mm",
+            "hygieneGroup": "rawMeat",
+            "mergeAllowed": false
+          }
         },
         {
           "id": "hb-mep-2",
-          "text": "Gewürze für die Marinade abmessen",
-          "category": "abmessen",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Gewürze für die Marinade abmessen",
+          "duration": {
+            "seconds": 120,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
-              "ingredientId": "hb-ing-paprika-edelsuess"
+              "ingredientId": "hb-ing-paprika-edelsuess",
+              "role": "prepare"
             },
             {
-              "ingredientId": "hb-ing-kreuzkuemmel"
+              "ingredientId": "hb-ing-kreuzkuemmel",
+              "role": "prepare"
             },
             {
-              "ingredientId": "hb-ing-sumach"
-            },
-            {
-              "ingredientId": "hb-ing-salz"
-            },
-            {
-              "ingredientId": "hb-ing-pfeffer"
-            }
-          ]
-        },
-        {
-          "id": "hb-mep-3",
-          "text": "Hähnchen mit Gewürzen und Joghurt marinieren, mind. 30 Min",
-          "shortLabel": "Marinade",
-          "category": "marinieren",
-          "timerMinutes": 30,
-          "uses": [
-            {
-              "ingredientId": "hb-ing-chicken"
-            },
-            {
-              "ingredientId": "hb-ing-joghurt",
-              "amount": 2,
-              "unit": "EL"
-            },
-            {
-              "ingredientId": "hb-ing-paprika-edelsuess"
-            },
-            {
-              "ingredientId": "hb-ing-kreuzkuemmel"
-            },
-            {
-              "ingredientId": "hb-ing-sumach"
-            }
-          ]
-        },
-        {
-          "id": "hb-mep-4",
-          "text": "Gurke und Tomaten würfeln",
-          "category": "schneiden",
-          "uses": [
-            {
-              "ingredientId": "hb-ing-gurke"
-            },
-            {
-              "ingredientId": "hb-ing-tomaten"
-            }
-          ]
-        },
-        {
-          "id": "hb-mep-5",
-          "text": "Knoblauch für die Sauce pressen",
-          "category": "schneiden",
-          "uses": [
-            {
-              "ingredientId": "hb-ing-knoblauch"
-            }
-          ]
-        },
-        {
-          "id": "hb-mep-6",
-          "text": "Bulgur abwiegen (375g für 5 Portionen)",
-          "category": "wiegen",
-          "uses": [
-            {
-              "ingredientId": "hb-ing-bulgur"
-            }
-          ]
-        }
-      ],
-      "steps": [
-        {
-          "id": "hb-s1",
-          "recipeId": "tuerkische-haehnchen-bowl",
-          "order": 1,
-          "text": "Bulgur mit Wasser aufkochen, dann Deckel drauf und Hitze reduzieren",
-          "shortLabel": "Bulgur köchelt",
-          "timeMinutes": 15,
-          "activeMinutes": 2,
-          "device": "Topf",
-          "tip": "Deckel drauf lassen, sonst verdampft zu viel Wasser.",
-          "uses": [
-            {
-              "ingredientId": "hb-ing-bulgur"
-            },
-            {
-              "ingredientId": "hb-ing-wasser-bulgur"
+              "ingredientId": "hb-ing-sumach",
+              "role": "prepare"
             },
             {
               "ingredientId": "hb-ing-salz",
-              "amount": 0.5,
-              "unit": "TL"
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "hb-ing-pfeffer",
+              "role": "prepare"
+            }
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
+        },
+        {
+          "id": "hb-mep-3",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Hähnchen mit den Marinade-Gewürzen und Joghurt mischen, anschließend kühl marinieren lassen.",
+          "duration": {
+            "seconds": 120,
+            "scaling": "linear"
+          },
+          "dependsOn": [
+            "hb-mep-1",
+            "hb-mep-2"
+          ],
+          "uses": [
+            {
+              "ingredientId": "hb-ing-chicken",
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "hb-ing-joghurt",
+              "role": "prepare",
+              "quantity": {
+                "kind": "exact",
+                "value": 2,
+                "unit": "tbsp"
+              }
+            },
+            {
+              "ingredientId": "hb-ing-paprika-edelsuess",
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "hb-ing-kreuzkuemmel",
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "hb-ing-sumach",
+              "role": "prepare"
+            }
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
+        },
+        {
+          "id": "hb-mep-3-wait",
+          "phase": "prep",
+          "mode": "passive",
+          "instruction": "Marinade abwarten und prüfen.",
+          "duration": {
+            "seconds": 1800,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "hb-mep-3"
+          ],
+          "uses": []
+        },
+        {
+          "id": "hb-mep-4",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Gurke und Tomaten würfeln",
+          "duration": {
+            "seconds": 300,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "hb-ing-gurke",
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "hb-ing-tomaten",
+              "role": "prepare"
+            }
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
+        },
+        {
+          "id": "hb-mep-5",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Knoblauch für die Sauce pressen",
+          "duration": {
+            "seconds": 60,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "hb-ing-knoblauch",
+              "role": "prepare"
+            }
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
+        },
+        {
+          "id": "hb-mep-6",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Bulgur abwiegen und bereitstellen.",
+          "duration": {
+            "seconds": 60,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "hb-ing-bulgur",
+              "role": "prepare"
+            }
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
+        },
+        {
+          "id": "hb-s1",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "Bulgur mit Wasser aufkochen, dann Deckel drauf und Hitze reduzieren",
+          "tip": "Deckel drauf lassen, sonst verdampft zu viel Wasser.",
+          "duration": {
+            "seconds": 120,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "hb-mep-6"
+          ],
+          "uses": [
+            {
+              "ingredientId": "hb-ing-bulgur",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "hb-ing-wasser-bulgur",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "hb-ing-salz",
+              "role": "transfer",
+              "quantity": {
+                "kind": "exact",
+                "value": 0.5,
+                "unit": "tsp"
+              }
             }
           ]
+        },
+        {
+          "id": "hb-s1-wait",
+          "phase": "cook",
+          "mode": "passive",
+          "instruction": "Bulgur köchelt – abwarten und Garzustand prüfen.",
+          "duration": {
+            "seconds": 780,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "hb-s1"
+          ],
+          "uses": []
         },
         {
           "id": "hb-s2",
-          "recipeId": "tuerkische-haehnchen-bowl",
-          "order": 2,
-          "text": "Hähnchenwürfel scharf anbraten",
-          "shortLabel": "Hähnchen braten",
-          "timeMinutes": 8,
-          "device": "Pfanne",
-          "temperatureC": null,
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "1. Hähnchen scharf anbraten.\n2. Bei mittlerer Hitze fertig garen und Garzustand prüfen.\n3. Gegarte Portion vor dem nächsten Durchgang in eine saubere Schüssel geben.",
+          "duration": {
+            "seconds": 840,
+            "scaling": "batches",
+            "batchCapacityServings": 5
+          },
+          "dependsOn": [
+            "hb-mep-3-wait"
+          ],
           "uses": [
             {
-              "ingredientId": "hb-ing-chicken"
+              "ingredientId": "hb-ing-chicken",
+              "role": "transfer"
             },
             {
-              "ingredientId": "hb-ing-oel"
+              "ingredientId": "hb-ing-oel",
+              "role": "transfer"
             }
-          ]
-        },
-        {
-          "id": "hb-s3",
-          "recipeId": "tuerkische-haehnchen-bowl",
-          "order": 3,
-          "text": "Hähnchen bei mittlerer Hitze fertig garen",
-          "shortLabel": "Hähnchen garen",
-          "timeMinutes": 6,
-          "device": "Pfanne",
-          "uses": [
-            {
-              "ingredientId": "hb-ing-chicken"
-            }
-          ]
+          ],
+          "shortLabel": "Pfannenrunde Hähnchen"
         },
         {
           "id": "hb-s4",
-          "recipeId": "tuerkische-haehnchen-bowl",
-          "order": 4,
-          "text": "Joghurt, Knoblauch und Zitronensaft zur Sauce verrühren",
-          "shortLabel": "Sauce rühren",
-          "timeMinutes": 3,
-          "device": "Arbeitsplatte",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "Joghurt, Knoblauch und Zitronensaft zur Sauce verrühren",
+          "duration": {
+            "seconds": 180,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "hb-mep-5"
+          ],
           "uses": [
             {
               "ingredientId": "hb-ing-joghurt",
-              "amount": 250,
-              "unit": "g"
+              "role": "transfer",
+              "quantity": {
+                "kind": "exact",
+                "value": 250,
+                "unit": "g"
+              }
             },
             {
-              "ingredientId": "hb-ing-knoblauch"
+              "ingredientId": "hb-ing-knoblauch",
+              "role": "transfer"
             },
             {
               "ingredientId": "hb-ing-zitrone",
+              "role": "transfer",
               "note": "Saft frisch"
             },
             {
               "ingredientId": "hb-ing-salz",
-              "amount": 0.5,
-              "unit": "TL"
+              "role": "transfer",
+              "quantity": {
+                "kind": "exact",
+                "value": 0.5,
+                "unit": "tsp"
+              }
             }
           ]
         },
         {
           "id": "hb-s5",
-          "recipeId": "tuerkische-haehnchen-bowl",
-          "order": 5,
-          "text": "Bulgur, Hähnchen und Salat anrichten, Sauce separat einpacken",
-          "shortLabel": "Bowl anrichten",
-          "timeMinutes": 4,
-          "device": "Arbeitsplatte",
+          "phase": "pack",
+          "mode": "active",
+          "instruction": "Bulgur, Hähnchen und Salat anrichten, Sauce separat einpacken",
           "tip": "Sauce erst beim Essen dazugeben.",
+          "duration": {
+            "seconds": 240,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "hb-s1-wait",
+            "hb-s2",
+            "hb-s4",
+            "hb-mep-4"
+          ],
           "uses": [
             {
-              "ingredientId": "hb-ing-bulgur"
+              "ingredientId": "hb-ing-bulgur",
+              "role": "transfer"
             },
             {
-              "ingredientId": "hb-ing-chicken"
+              "ingredientId": "hb-ing-chicken",
+              "role": "transfer"
             },
             {
-              "ingredientId": "hb-ing-gurke"
+              "ingredientId": "hb-ing-gurke",
+              "role": "transfer"
             },
             {
-              "ingredientId": "hb-ing-tomaten"
+              "ingredientId": "hb-ing-tomaten",
+              "role": "transfer"
             },
             {
               "ingredientId": "hb-ing-joghurt",
-              "amount": 250,
-              "unit": "g",
+              "role": "transfer",
+              "quantity": {
+                "kind": "exact",
+                "value": 250,
+                "unit": "g"
+              },
               "note": "separat einpacken"
             }
           ]
         }
-      ]
+      ],
+      "reservations": [
+        {
+          "id": "work-3",
+          "kind": "worktop",
+          "units": 1,
+          "fromTask": "hb-s4",
+          "throughTask": "hb-s4"
+        },
+        {
+          "id": "work-4",
+          "kind": "worktop",
+          "units": 1,
+          "fromTask": "hb-s5",
+          "throughTask": "hb-s5"
+        },
+        {
+          "id": "pot",
+          "kind": "pot",
+          "units": 1,
+          "fromTask": "hb-s1",
+          "throughTask": "hb-s5",
+          "minVolumeMlAtBase": 1800
+        },
+        {
+          "id": "pot-hob",
+          "kind": "hob",
+          "units": 1,
+          "fromTask": "hb-s1",
+          "throughTask": "hb-s1-wait"
+        },
+        {
+          "id": "pan",
+          "kind": "pan",
+          "units": 1,
+          "fromTask": "hb-s2",
+          "throughTask": "hb-s5"
+        },
+        {
+          "id": "pan-hob",
+          "kind": "hob",
+          "units": 1,
+          "fromTask": "hb-s2",
+          "throughTask": "hb-s2"
+        },
+        {
+          "id": "board-hb-mep-1",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "hb-mep-1",
+          "throughTask": "hb-mep-1"
+        },
+        {
+          "id": "board-hb-mep-4",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "hb-mep-4",
+          "throughTask": "hb-mep-4"
+        },
+        {
+          "id": "board-hb-mep-5",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "hb-mep-5",
+          "throughTask": "hb-mep-5"
+        },
+        {
+          "id": "knife-board-hb-mep-1",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "hb-mep-1",
+          "throughTask": "hb-mep-1"
+        },
+        {
+          "id": "knife-board-hb-mep-4",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "hb-mep-4",
+          "throughTask": "hb-mep-4"
+        },
+        {
+          "id": "knife-board-hb-mep-5",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "hb-mep-5",
+          "throughTask": "hb-mep-5"
+        }
+      ],
+      "nutrition": {
+        "basis": "perServing",
+        "energyKcal": 540,
+        "proteinG": 38,
+        "carbsG": 52,
+        "fatG": 18,
+        "fiberG": 7
+      },
+      "storage": {
+        "freezable": true,
+        "notes": [
+          "Joghurt-Sauce separat einpacken, sonst wird der Bulgur matschig.",
+          "Hähnchen portionsweise einfrieren, Sauce jede Woche frisch machen."
+        ]
+      },
+      "packaging": {
+        "containersPerServing": 1,
+        "separateComponents": [
+          "Joghurt-Sauce"
+        ]
+      },
+      "role": "main"
     },
     {
       "id": "mexikanischer-thunfisch-reis",
+      "revision": 1,
       "name": "Mexikanischer Thunfisch-Reis",
-      "servings": 5,
-      "freezable": true,
-      "macrosPerServing": {
-        "kcal": 480,
-        "protein_g": 32,
-        "carbs_g": 58,
-        "fat_g": 12,
-        "fiber_g": 8
-      },
-      "notes": [
-        "Limettensaft erst kurz vor dem Essen zugeben, sonst wird der Reis labbrig.",
-        "Im Kühlschrank 3 Tage haltbar, danach einfrieren."
-      ],
+      "baseServings": 5,
       "ingredients": [
         {
           "id": "tr-ing-reis",
+          "foodId": "legacy-food-15",
           "name": "Langkornreis",
-          "amount": 375,
-          "unit": "g",
-          "category": "trockenes"
+          "quantity": {
+            "kind": "exact",
+            "value": 375,
+            "unit": "g"
+          },
+          "optional": false,
+          "category": "dry"
         },
         {
           "id": "tr-ing-thunfisch",
+          "foodId": "legacy-food-16",
           "name": "Thunfisch (Dose)",
-          "amount": 400,
-          "unit": "g",
-          "category": "konserven"
+          "quantity": {
+            "kind": "exact",
+            "value": 400,
+            "unit": "g"
+          },
+          "optional": false,
+          "category": "canned"
         },
         {
           "id": "tr-ing-mais",
+          "foodId": "legacy-food-17",
           "name": "Mais (Dose)",
-          "amount": 280,
-          "unit": "g",
-          "category": "konserven"
+          "quantity": {
+            "kind": "exact",
+            "value": 280,
+            "unit": "g"
+          },
+          "optional": false,
+          "category": "canned"
         },
         {
           "id": "tr-ing-bohnen",
+          "foodId": "legacy-food-18",
           "name": "Schwarze Bohnen (Dose)",
-          "amount": 400,
-          "unit": "g",
-          "category": "konserven"
+          "quantity": {
+            "kind": "exact",
+            "value": 400,
+            "unit": "g"
+          },
+          "optional": false,
+          "category": "canned"
         },
         {
           "id": "tr-ing-paprika",
+          "foodId": "legacy-food-19",
           "name": "Paprika (Gemüse)",
-          "amount": 2,
-          "unit": "Stück",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "piece"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "tr-ing-zwiebel",
+          "foodId": "legacy-food-20",
           "name": "Zwiebel",
-          "amount": 1,
-          "unit": "Stück",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "piece"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "tr-ing-limetten",
+          "foodId": "legacy-food-21",
           "name": "Limetten",
-          "amount": 2,
-          "unit": "Stück",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "piece"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "tr-ing-koriander",
+          "foodId": "legacy-food-22",
           "name": "Koriander (frisch)",
-          "amount": 1,
-          "unit": "Bund",
-          "category": "gemuese"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "bunch"
+          },
+          "optional": false,
+          "category": "produce"
         },
         {
           "id": "tr-ing-cumin",
+          "foodId": "legacy-food-9",
           "name": "Kreuzkümmel",
-          "amount": 1,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "tr-ing-chili",
+          "foodId": "legacy-food-23",
           "name": "Chilipulver",
-          "amount": 0.5,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 0.5,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "tr-ing-paprika-pulver",
+          "foodId": "legacy-food-24",
           "name": "Paprikapulver",
-          "amount": 1,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "tr-ing-salz",
+          "foodId": "legacy-food-11",
           "name": "Salz",
-          "amount": 1,
-          "unit": "TL",
-          "category": "gewuerze"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "tsp"
+          },
+          "optional": false,
+          "category": "spices"
         },
         {
           "id": "tr-ing-oel",
+          "foodId": "legacy-food-25",
           "name": "Öl",
-          "amount": 1,
-          "unit": "EL",
-          "category": "oele_saucen"
+          "quantity": {
+            "kind": "exact",
+            "value": 1,
+            "unit": "tbsp"
+          },
+          "optional": false,
+          "category": "oils"
         },
         {
           "id": "tr-ing-wasser-reis",
+          "foodId": "legacy-food-26",
           "name": "Wasser (für Reis)",
-          "amount": 750,
-          "unit": "ml",
-          "category": "sonstiges",
-          "optional": true
+          "quantity": {
+            "kind": "exact",
+            "value": 750,
+            "unit": "ml"
+          },
+          "optional": true,
+          "category": "other"
         }
       ],
-      "misEnPlace": [
+      "tasks": [
         {
           "id": "tr-mep-1",
-          "text": "Paprika und Zwiebel würfeln",
-          "category": "schneiden",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Paprika würfeln.",
+          "duration": {
+            "seconds": 180,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
-              "ingredientId": "tr-ing-paprika"
-            },
-            {
-              "ingredientId": "tr-ing-zwiebel"
+              "ingredientId": "tr-ing-paprika",
+              "role": "prepare"
             }
-          ]
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
         },
         {
           "id": "tr-mep-2",
-          "text": "Mais und schwarze Bohnen abtropfen lassen",
-          "category": "sonstiges",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Mais und schwarze Bohnen abtropfen lassen",
+          "duration": {
+            "seconds": 120,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
-              "ingredientId": "tr-ing-mais"
+              "ingredientId": "tr-ing-mais",
+              "role": "prepare"
             },
             {
-              "ingredientId": "tr-ing-bohnen"
+              "ingredientId": "tr-ing-bohnen",
+              "role": "prepare"
             }
-          ]
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
         },
         {
           "id": "tr-mep-3",
-          "text": "Reis abwiegen (375g für 5 Portionen)",
-          "category": "wiegen",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Reis abwiegen und bereitstellen.",
+          "duration": {
+            "seconds": 60,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
-              "ingredientId": "tr-ing-reis"
+              "ingredientId": "tr-ing-reis",
+              "role": "prepare"
             }
-          ]
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
         },
         {
           "id": "tr-mep-4",
-          "text": "Thunfisch abtropfen lassen und mit Gabel zerpflücken",
-          "category": "sonstiges",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Thunfisch abtropfen lassen und mit Gabel zerpflücken",
+          "duration": {
+            "seconds": 120,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
-              "ingredientId": "tr-ing-thunfisch"
+              "ingredientId": "tr-ing-thunfisch",
+              "role": "prepare"
             }
-          ]
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
         },
         {
           "id": "tr-mep-5",
-          "text": "Koriander hacken",
-          "category": "schneiden",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Koriander hacken",
+          "duration": {
+            "seconds": 60,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
-              "ingredientId": "tr-ing-koriander"
+              "ingredientId": "tr-ing-koriander",
+              "role": "prepare"
             }
-          ]
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
         },
         {
           "id": "tr-mep-6",
-          "text": "2 Limetten auspressen",
-          "category": "abmessen",
-          "uses": [
-            {
-              "ingredientId": "tr-ing-limetten"
-            }
-          ]
-        },
-        {
-          "id": "tr-mep-7",
-          "text": "Gewürze für den Reis abmessen",
-          "category": "abmessen",
-          "uses": [
-            {
-              "ingredientId": "tr-ing-cumin"
-            },
-            {
-              "ingredientId": "tr-ing-chili"
-            },
-            {
-              "ingredientId": "tr-ing-paprika-pulver"
-            },
-            {
-              "ingredientId": "tr-ing-salz"
-            }
-          ]
-        }
-      ],
-      "steps": [
-        {
-          "id": "tr-s1",
-          "recipeId": "mexikanischer-thunfisch-reis",
-          "order": 1,
-          "text": "Reis abspülen und mit Wasser aufkochen",
-          "shortLabel": "Reis köchelt",
-          "timeMinutes": 15,
-          "activeMinutes": 2,
-          "device": "Topf",
-          "tip": "Kurz abspülen, sonst klebt der Reis später.",
-          "uses": [
-            {
-              "ingredientId": "tr-ing-reis"
-            },
-            {
-              "ingredientId": "tr-ing-wasser-reis"
-            },
-            {
-              "ingredientId": "tr-ing-salz",
-              "amount": 0.5,
-              "unit": "TL"
-            }
-          ]
-        },
-        {
-          "id": "tr-s2",
-          "recipeId": "mexikanischer-thunfisch-reis",
-          "order": 2,
-          "text": "Paprika und Zwiebel andünsten",
-          "shortLabel": "Gemüse dünsten",
-          "timeMinutes": 6,
-          "device": "Pfanne",
-          "uses": [
-            {
-              "ingredientId": "tr-ing-paprika"
-            },
-            {
-              "ingredientId": "tr-ing-zwiebel"
-            },
-            {
-              "ingredientId": "tr-ing-oel"
-            }
-          ]
-        },
-        {
-          "id": "tr-s3",
-          "recipeId": "mexikanischer-thunfisch-reis",
-          "order": 3,
-          "text": "Mais, Bohnen und Gewürze dazugeben",
-          "shortLabel": "Bohnen & Gewürze",
-          "timeMinutes": 5,
-          "device": "Pfanne",
-          "uses": [
-            {
-              "ingredientId": "tr-ing-mais"
-            },
-            {
-              "ingredientId": "tr-ing-bohnen"
-            },
-            {
-              "ingredientId": "tr-ing-cumin"
-            },
-            {
-              "ingredientId": "tr-ing-chili"
-            },
-            {
-              "ingredientId": "tr-ing-paprika-pulver"
-            },
-            {
-              "ingredientId": "tr-ing-salz",
-              "amount": 0.5,
-              "unit": "TL"
-            }
-          ]
-        },
-        {
-          "id": "tr-s4",
-          "recipeId": "mexikanischer-thunfisch-reis",
-          "order": 4,
-          "text": "Thunfisch unterheben und kurz erwärmen",
-          "shortLabel": "Thunfisch erwärmen",
-          "timeMinutes": 3,
-          "device": "Pfanne",
-          "uses": [
-            {
-              "ingredientId": "tr-ing-thunfisch"
-            }
-          ]
-        },
-        {
-          "id": "tr-s5",
-          "recipeId": "mexikanischer-thunfisch-reis",
-          "order": 5,
-          "text": "Anrichten mit Limette und Koriander",
-          "shortLabel": "Reis anrichten",
-          "timeMinutes": 4,
-          "device": "Arbeitsplatte",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Limetten auspressen und Saft für das Ende bereitstellen.",
+          "duration": {
+            "seconds": 120,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
           "uses": [
             {
               "ingredientId": "tr-ing-limetten",
+              "role": "prepare"
+            }
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
+        },
+        {
+          "id": "tr-mep-7",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Gewürze für den Reis abmessen",
+          "duration": {
+            "seconds": 120,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "tr-ing-cumin",
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "tr-ing-chili",
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "tr-ing-paprika-pulver",
+              "role": "prepare"
+            },
+            {
+              "ingredientId": "tr-ing-salz",
+              "role": "prepare"
+            }
+          ],
+          "tip": "Vorbereitungszeit ist ein Schätzwert. Die Mengen-Chips gelten für deine gewählten Portionen."
+        },
+        {
+          "id": "tr-s1",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "Reis abspülen und mit Wasser aufkochen",
+          "tip": "Kurz abspülen, sonst klebt der Reis später.",
+          "duration": {
+            "seconds": 120,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "tr-mep-3"
+          ],
+          "uses": [
+            {
+              "ingredientId": "tr-ing-reis",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-wasser-reis",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-salz",
+              "role": "transfer",
+              "quantity": {
+                "kind": "exact",
+                "value": 0.5,
+                "unit": "tsp"
+              }
+            }
+          ]
+        },
+        {
+          "id": "tr-s1-wait",
+          "phase": "cook",
+          "mode": "passive",
+          "instruction": "Reis köchelt – abwarten und Garzustand prüfen.",
+          "duration": {
+            "seconds": 780,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "tr-s1"
+          ],
+          "uses": []
+        },
+        {
+          "id": "tr-s2",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "1. Paprika und Zwiebel andünsten.\n2. Mais, Bohnen und Gewürze zugeben.\n3. Thunfisch unterheben und erwärmen.\n4. Fertige Charge vor dem nächsten Durchgang beiseitestellen.",
+          "duration": {
+            "seconds": 840,
+            "scaling": "batches",
+            "batchCapacityServings": 5
+          },
+          "dependsOn": [
+            "tr-mep-1",
+            "onion-prep",
+            "tr-mep-2",
+            "tr-mep-7",
+            "tr-mep-4"
+          ],
+          "uses": [
+            {
+              "ingredientId": "tr-ing-paprika",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-zwiebel",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-oel",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-mais",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-bohnen",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-cumin",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-chili",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-paprika-pulver",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "tr-ing-salz",
+              "role": "transfer",
+              "quantity": {
+                "kind": "exact",
+                "value": 0.5,
+                "unit": "tsp"
+              }
+            },
+            {
+              "ingredientId": "tr-ing-thunfisch",
+              "role": "transfer"
+            }
+          ],
+          "shortLabel": "Pfannenrunde Gemüse"
+        },
+        {
+          "id": "tr-s5",
+          "phase": "pack",
+          "mode": "active",
+          "instruction": "Anrichten mit Limette und Koriander",
+          "duration": {
+            "seconds": 240,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "tr-s1-wait",
+            "tr-s2",
+            "tr-mep-5",
+            "tr-mep-6"
+          ],
+          "uses": [
+            {
+              "ingredientId": "tr-ing-limetten",
+              "role": "transfer",
               "note": "erst am Ende"
             },
             {
-              "ingredientId": "tr-ing-koriander"
+              "ingredientId": "tr-ing-koriander",
+              "role": "transfer"
             }
           ]
+        },
+        {
+          "id": "onion-prep",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Zwiebel fein würfeln.",
+          "duration": {
+            "seconds": 60,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "tr-ing-zwiebel",
+              "role": "prepare"
+            }
+          ],
+          "prep": {
+            "ingredientId": "tr-ing-zwiebel",
+            "operation": "dice",
+            "resultSpec": "5-mm",
+            "hygieneGroup": "produce",
+            "mergeAllowed": true
+          }
         }
-      ]
+      ],
+      "reservations": [
+        {
+          "id": "work-4",
+          "kind": "worktop",
+          "units": 1,
+          "fromTask": "tr-s5",
+          "throughTask": "tr-s5"
+        },
+        {
+          "id": "pot",
+          "kind": "pot",
+          "units": 1,
+          "fromTask": "tr-s1",
+          "throughTask": "tr-s5",
+          "minVolumeMlAtBase": 1800
+        },
+        {
+          "id": "pot-hob",
+          "kind": "hob",
+          "units": 1,
+          "fromTask": "tr-s1",
+          "throughTask": "tr-s1-wait"
+        },
+        {
+          "id": "pan",
+          "kind": "pan",
+          "units": 1,
+          "fromTask": "tr-s2",
+          "throughTask": "tr-s5"
+        },
+        {
+          "id": "pan-hob",
+          "kind": "hob",
+          "units": 1,
+          "fromTask": "tr-s2",
+          "throughTask": "tr-s2"
+        },
+        {
+          "id": "board-tr-mep-1",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "tr-mep-1",
+          "throughTask": "tr-mep-1"
+        },
+        {
+          "id": "board-tr-mep-5",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "tr-mep-5",
+          "throughTask": "tr-mep-5"
+        },
+        {
+          "id": "onion-board",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "onion-prep",
+          "throughTask": "onion-prep"
+        },
+        {
+          "id": "knife-board-tr-mep-1",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "tr-mep-1",
+          "throughTask": "tr-mep-1"
+        },
+        {
+          "id": "knife-board-tr-mep-5",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "tr-mep-5",
+          "throughTask": "tr-mep-5"
+        },
+        {
+          "id": "knife-onion-board",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "onion-prep",
+          "throughTask": "onion-prep"
+        }
+      ],
+      "nutrition": {
+        "basis": "perServing",
+        "energyKcal": 480,
+        "proteinG": 32,
+        "carbsG": 58,
+        "fatG": 12,
+        "fiberG": 8
+      },
+      "storage": {
+        "freezable": true,
+        "notes": [
+          "Limettensaft erst kurz vor dem Essen zugeben, sonst wird der Reis labbrig.",
+          "Im Kühlschrank 3 Tage haltbar, danach einfrieren."
+        ]
+      },
+      "packaging": {
+        "containersPerServing": 1,
+        "separateComponents": []
+      },
+      "role": "main"
+    },
+    {
+      "id": "ofen-kichererbsen",
+      "revision": 1,
+      "role": "main",
+      "name": "Ofengemüse mit Kichererbsen",
+      "baseServings": 4,
+      "ingredients": [
+        {
+          "id": "carrot",
+          "foodId": "carrot",
+          "name": "Karotten",
+          "quantity": {
+            "kind": "exact",
+            "value": 500,
+            "unit": "g"
+          },
+          "category": "produce"
+        },
+        {
+          "id": "zucchini",
+          "foodId": "zucchini",
+          "name": "Zucchini",
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "piece"
+          },
+          "category": "produce"
+        },
+        {
+          "id": "onion",
+          "foodId": "legacy-food-20",
+          "name": "Zwiebel",
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "piece"
+          },
+          "category": "produce"
+        },
+        {
+          "id": "chickpeas",
+          "foodId": "chickpeas-cooked",
+          "name": "Kichererbsen, abgetropft",
+          "quantity": {
+            "kind": "exact",
+            "value": 480,
+            "unit": "g"
+          },
+          "category": "canned"
+        },
+        {
+          "id": "oil",
+          "foodId": "legacy-food-13",
+          "name": "Olivenöl",
+          "quantity": {
+            "kind": "exact",
+            "value": 2,
+            "unit": "tbsp"
+          },
+          "category": "oils"
+        },
+        {
+          "id": "salt",
+          "foodId": "legacy-food-11",
+          "name": "Salz",
+          "quantity": {
+            "kind": "exact",
+            "value": 0.5,
+            "unit": "tsp"
+          },
+          "category": "spices"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "oven-on",
+          "instruction": "Ofen auf 200 °C Umluft einschalten.",
+          "mode": "active",
+          "phase": "cook",
+          "duration": {
+            "seconds": 30,
+            "scaling": "fixed"
+          },
+          "dependsOn": [],
+          "uses": []
+        },
+        {
+          "id": "preheat",
+          "instruction": "Ofen vorheizen lassen.",
+          "mode": "passive",
+          "phase": "cook",
+          "duration": {
+            "seconds": 600,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "oven-on"
+          ],
+          "uses": []
+        },
+        {
+          "id": "carrot-prep",
+          "instruction": "Karotten waschen und in gleichmäßige Stücke schneiden.",
+          "mode": "active",
+          "phase": "prep",
+          "duration": {
+            "seconds": 300,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "carrot",
+              "role": "transfer"
+            }
+          ]
+        },
+        {
+          "id": "zucchini-prep",
+          "instruction": "Zucchini waschen und in gleichmäßige Stücke schneiden.",
+          "mode": "active",
+          "phase": "prep",
+          "duration": {
+            "seconds": 180,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "zucchini",
+              "role": "transfer"
+            }
+          ]
+        },
+        {
+          "id": "onion-prep",
+          "instruction": "Zwiebeln fein würfeln.",
+          "mode": "active",
+          "phase": "prep",
+          "duration": {
+            "seconds": 120,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "onion",
+              "role": "prepare"
+            }
+          ],
+          "prep": {
+            "ingredientId": "onion",
+            "operation": "dice",
+            "resultSpec": "5-mm",
+            "hygieneGroup": "produce",
+            "mergeAllowed": true
+          }
+        },
+        {
+          "id": "drain",
+          "instruction": "Kichererbsen abtropfen lassen.",
+          "mode": "active",
+          "phase": "prep",
+          "duration": {
+            "seconds": 60,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "chickpeas",
+              "role": "transfer"
+            }
+          ]
+        },
+        {
+          "id": "load",
+          "instruction": "Gemüse und Kichererbsen mit Öl und Salz auf dem Blech mischen und einschieben.",
+          "mode": "active",
+          "phase": "cook",
+          "duration": {
+            "seconds": 120,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "preheat",
+            "carrot-prep",
+            "zucchini-prep",
+            "onion-prep",
+            "drain"
+          ],
+          "uses": [
+            {
+              "ingredientId": "carrot",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "zucchini",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "onion",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "chickpeas",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "oil",
+              "role": "transfer"
+            },
+            {
+              "ingredientId": "salt",
+              "role": "transfer"
+            }
+          ]
+        },
+        {
+          "id": "bake",
+          "instruction": "Gemüse etwa 25 Minuten backen. Anschließend Garzustand prüfen.",
+          "mode": "passive",
+          "phase": "cook",
+          "duration": {
+            "seconds": 1500,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "load"
+          ],
+          "uses": []
+        },
+        {
+          "id": "unload",
+          "instruction": "Garzustand prüfen und das heiße Blech sicher aus dem Ofen nehmen.",
+          "mode": "active",
+          "phase": "cook",
+          "duration": {
+            "seconds": 60,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "bake"
+          ],
+          "uses": []
+        },
+        {
+          "id": "pack",
+          "instruction": "Auf die gewählten Portionen aufteilen und nach den Lagerungshinweisen aufbewahren.",
+          "mode": "active",
+          "phase": "pack",
+          "duration": {
+            "seconds": 180,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "unload"
+          ],
+          "uses": []
+        }
+      ],
+      "reservations": [
+        {
+          "id": "board-carrot-prep",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "carrot-prep",
+          "throughTask": "carrot-prep"
+        },
+        {
+          "id": "board-zucchini-prep",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "zucchini-prep",
+          "throughTask": "zucchini-prep"
+        },
+        {
+          "id": "board-onion-prep",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "onion-prep",
+          "throughTask": "onion-prep"
+        },
+        {
+          "id": "oven",
+          "kind": "oven",
+          "units": 1,
+          "fromTask": "oven-on",
+          "throughTask": "unload",
+          "ovenSettings": {
+            "temperatureC": 200,
+            "mode": "fan"
+          }
+        },
+        {
+          "id": "tray",
+          "kind": "tray",
+          "units": 1,
+          "fromTask": "load",
+          "throughTask": "pack"
+        },
+        {
+          "id": "knife-board-carrot-prep",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "carrot-prep",
+          "throughTask": "carrot-prep"
+        },
+        {
+          "id": "knife-board-zucchini-prep",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "zucchini-prep",
+          "throughTask": "zucchini-prep"
+        },
+        {
+          "id": "knife-board-onion-prep",
+          "kind": "knife",
+          "units": 1,
+          "fromTask": "onion-prep",
+          "throughTask": "onion-prep"
+        }
+      ],
+      "storage": {
+        "freezable": true,
+        "notes": [
+          "Zügig und fachgerecht abkühlen und kühlen. Es liegt keine geprüfte Haltbarkeitsdauer vor."
+        ]
+      },
+      "packaging": {
+        "containersPerServing": 1,
+        "separateComponents": []
+      }
     }
   ],
-  "weekNote": "Zwei Töpfe bereitstellen. Joghurt für Marinade und Sauce aufteilen. Limette erst beim Anrichten.",
-  "equipment": [
+  "selection": [
     {
-      "id": "eq-topf",
-      "name": "Topf",
-      "qty": 2,
-      "note": "Bulgur + Reis parallel"
+      "recipeId": "tuerkische-haehnchen-bowl",
+      "servings": 5
     },
     {
-      "id": "eq-pfanne",
-      "name": "Pfanne",
-      "qty": 2,
-      "note": "eins pro Rezept oder nacheinander"
+      "recipeId": "mexikanischer-thunfisch-reis",
+      "servings": 5
     },
     {
-      "id": "eq-brett",
-      "name": "Schneidebrett",
-      "qty": 1
-    },
-    {
-      "id": "eq-messer",
-      "name": "scharfes Messer",
-      "qty": 1
-    },
-    {
-      "id": "eq-waage",
-      "name": "Küchenwaage",
-      "qty": 1
-    },
-    {
-      "id": "eq-siebe",
-      "name": "Sieb",
-      "qty": 1,
-      "note": "Dosen abtropfen"
-    },
-    {
-      "id": "eq-schuesseln",
-      "name": "Schüsseln",
-      "qty": 3,
-      "note": "Marinade, Sauce, Salat"
-    },
-    {
-      "id": "eq-boxen",
-      "name": "Meal-Prep-Boxen",
-      "qty": 10,
-      "note": "5 Portionen × 2 Rezepte"
+      "recipeId": "ofen-kichererbsen",
+      "servings": 4
     }
-  ]
+  ],
+  "kitchen": {
+    "cooks": 1,
+    "cleaningSeconds": 60,
+    "resources": [
+      {
+        "id": "pot-1",
+        "name": "Topf 1",
+        "kind": "pot",
+        "capacity": 1,
+        "volumeMl": 4000
+      },
+      {
+        "id": "pot-2",
+        "name": "Topf 2",
+        "kind": "pot",
+        "capacity": 1,
+        "volumeMl": 4000
+      },
+      {
+        "id": "pan-1",
+        "name": "Pfanne 1",
+        "kind": "pan",
+        "capacity": 1
+      },
+      {
+        "id": "pan-2",
+        "name": "Pfanne 2",
+        "kind": "pan",
+        "capacity": 1
+      },
+      {
+        "id": "hob-1",
+        "name": "Herdplatte 1",
+        "kind": "hob",
+        "capacity": 1
+      },
+      {
+        "id": "hob-2",
+        "name": "Herdplatte 2",
+        "kind": "hob",
+        "capacity": 1
+      },
+      {
+        "id": "hob-3",
+        "name": "Herdplatte 3",
+        "kind": "hob",
+        "capacity": 1
+      },
+      {
+        "id": "hob-4",
+        "name": "Herdplatte 4",
+        "kind": "hob",
+        "capacity": 1
+      },
+      {
+        "id": "oven-1",
+        "name": "Ofen",
+        "kind": "oven",
+        "capacity": 2,
+        "supportedModes": [
+          "fan",
+          "topBottom"
+        ]
+      },
+      {
+        "id": "tray-1",
+        "name": "Blech",
+        "kind": "tray",
+        "capacity": 1
+      },
+      {
+        "id": "board-1",
+        "name": "Schneidebrett",
+        "kind": "board",
+        "capacity": 1
+      },
+      {
+        "id": "knife-1",
+        "name": "Messer",
+        "kind": "knife",
+        "capacity": 1
+      },
+      {
+        "id": "worktop-1",
+        "name": "Arbeitsfläche",
+        "kind": "worktop",
+        "capacity": 1
+      }
+    ]
+  },
+  "title": "Dein Sonntagsmenü"
 }

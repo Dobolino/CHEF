@@ -1,0 +1,98 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { compileGraph } from '../src/planning/graph.js';
+import { readiness, plan } from '../src/planning/scheduler.js';
+import { newSession, reduceSession, isComplete } from '../src/session/state.js';
+import { createStore, STORAGE_KEY } from '../src/session/store.js';
+import { packingPlan } from '../src/ui/views.js';
+import { menu, recipe, task, hold, memoryStorage } from './helpers.js';
+
+function fixture() {
+  const doc = menu([recipe('a', [task('start', 2), task('wait', 20, { mode: 'passive', deps: ['start'] }), task('pack', 1, { deps: ['wait'] })], [hold('pot', 'pot', 'start', 'pack')])]);
+  return { doc, graph: compileGraph(doc) };
+}
+test('absolute timer deadlines survive serialization and acknowledgement is individual', () => {
+  const { graph } = fixture(); let s = newSession();
+  s = reduceSession(graph, s, { type: 'START', id: 'a/start' }, 1000);
+  assert.equal(s.timers['a/start'].endsAt, 3000);
+  s = JSON.parse(JSON.stringify(s));
+  s = reduceSession(graph, s, { type: 'TICK' }, 4000);
+  assert.equal(s.tasks['a/start'].status, 'elapsed'); assert.equal(isComplete(graph, s), false);
+  s = reduceSession(graph, s, { type: 'ACK', id: 'a/start' }, 4000);
+  assert.equal(s.timers['a/start'].state, 'acknowledged'); assert.equal(readiness(graph, s, 'a/wait').ready, false);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/start' }, 4000);
+  assert.equal(readiness(graph, s, 'a/wait').ready, true);
+});
+test('passive time cannot be completed early without explicit confirmation', () => {
+  const { graph } = fixture(); let s = newSession();
+  s = reduceSession(graph, s, { type: 'START', id: 'a/start' }, 0);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/start' }, 1000);
+  s = reduceSession(graph, s, { type: 'START', id: 'a/wait' }, 1000);
+  assert.throws(() => reduceSession(graph, s, { type: 'COMPLETE', id: 'a/wait' }, 2000));
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/wait', confirmEarly: true }, 2000);
+  assert.equal(s.tasks['a/wait'].status, 'completed');
+});
+test('extending an expired timer re-arms only that timer', () => {
+  const graph = compileGraph(menu([recipe('a', [task('one', 1, { mode: 'passive' }), task('two', 1, { mode: 'passive' })])]));
+  let s = newSession(); for (const id of ['a/one', 'a/two']) s = reduceSession(graph, s, { type: 'START', id }, 0);
+  s = reduceSession(graph, s, { type: 'TICK' }, 2000);
+  s = reduceSession(graph, s, { type: 'ACK', id: 'a/one' }, 2000);
+  assert.equal(s.timers['a/two'].state, 'elapsed');
+  s = reduceSession(graph, s, { type: 'ADJUST', id: 'a/one', seconds: 60 }, 2000);
+  assert.equal(s.timers['a/one'].state, 'running'); assert.equal(s.timers['a/one'].endsAt, 61000);
+});
+test('skipped prerequisites do not unlock dependent tasks or mark the meal complete', () => {
+  const { graph } = fixture(); const s = reduceSession(graph, newSession(), { type: 'SKIP', id: 'a/start' });
+  assert.equal(readiness(graph, s, 'a/wait').ready, false); assert.equal(isComplete(graph, s), false);
+  assert.throws(() => plan(graph, { session: s }));
+  assert.equal(readiness(graph, reduceSession(graph, s, { type: 'RESTORE', id: 'a/start' }), 'a/start').ready, true);
+});
+test('reload forecast preserves existing resource pins and remaining deadlines', () => {
+  const { graph } = fixture(); let s = newSession();
+  s = reduceSession(graph, s, { type: 'START', id: 'a/start' }, 1000);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/start' }, 2000);
+  s = reduceSession(graph, s, { type: 'START', id: 'a/wait' }, 2000);
+  const p = plan(graph, { session: JSON.parse(JSON.stringify(s)), now: 12000 });
+  assert.equal(p.entries.find(e => e.taskId === 'a/wait').end, 10);
+  assert.equal(p.reservations.find(r => r.holdId === 'a/hold:pot').resourceId, 'pot-1');
+});
+test('failed persistence or invalid import leaves the old snapshot unchanged', () => {
+  const storage = memoryStorage(), store = createStore(storage), { doc } = fixture(); store.activate(doc);
+  const before = storage.getItem(STORAGE_KEY), current = store.state;
+  storage.setItem = () => { throw new Error('quota'); };
+  assert.throws(() => store.activate(doc), /Speichern fehlgeschlagen/);
+  assert.equal(storage.getItem(STORAGE_KEY), before); assert.equal(store.state, current);
+  const invalid = structuredClone(doc); invalid.recipes[0].name = null;
+  assert.throws(() => store.activate(invalid)); assert.equal(store.state, current);
+});
+test('stale tabs cannot silently overwrite a newer session', () => {
+  const storage = memoryStorage(), a = createStore(storage), { doc } = fixture(); a.activate(doc);
+  const b = createStore(storage); a.commit(next => { next.current.session.note = 'new'; });
+  assert.throws(() => b.commit(next => { next.current.session.note = 'old'; }), /anderen Tab/);
+  assert.equal(JSON.parse(storage.getItem(STORAGE_KEY)).current.session.note, 'new');
+});
+test('archive preserves timer deadlines, restore swaps current snapshot, new session resets safely', () => {
+  const storage = memoryStorage(), store = createStore(storage), { doc, graph } = fixture(); store.activate(doc);
+  store.commit(next => { next.current.session = reduceSession(graph, next.current.session, { type: 'START', id: 'a/start' }, 1000); });
+  store.startAgain(); assert.equal(store.state.archive.length, 1); assert.equal(store.state.current.session.timers['a/start'], undefined);
+  store.restore(store.state.archive[0].id); assert.equal(store.state.current.session.timers['a/start'].endsAt, 3000);
+  assert.equal(createStore(storage).loadError, null);
+});
+test('backup can restore all data while retaining the current snapshot', () => {
+  const storage = memoryStorage(), store = createStore(storage), { doc } = fixture(); store.activate(doc);
+  const backup = { kind: 'chef-backup', version: 2, state: structuredClone(store.state) };
+  store.clearCurrent(); store.restoreBackup(backup); assert.equal(store.state.current.document.recipes[0].id, 'a');
+  assert.equal(createStore(storage).loadError, null);
+});
+test('editing a begun session is blocked and view changes do not mutate state', () => {
+  const storage = memoryStorage(), store = createStore(storage), { doc, graph } = fixture(); store.activate(doc);
+  store.commit(next => { next.current.session = reduceSession(graph, next.current.session, { type: 'START', id: 'a/start' }, 1000); });
+  assert.throws(() => store.changeDocument(d => { d.selection[0].servings = 8; }), /Während/);
+  assert.equal(store.state.current.document.selection[0].servings, 4);
+});
+test('shared meal boxes count leftovers and separate components without double-counting shared boxes', () => {
+  const main = recipe('main', [task('one', 1)]), side = recipe('side', [task('one', 1)]);
+  side.packaging.combineWithRecipeId = 'main'; side.packaging.separateComponents = ['Sauce'];
+  const d = menu([main, side]); d.selection[1].servings = 6;
+  const packing = packingPlan(d); assert.equal(packing[0].containers, 4); assert.equal(packing[1].containers, 2); assert.equal(packing[1].shared, 4);
+});

@@ -1,198 +1,104 @@
-# Prompt: Wochenmenü als `recipes.json` für die Batch-Cooking-App
+# Rezept-Prompt für CHEF 2.0
 
-Kopiere den Block unten an Claude (oder ein anderes Modell), wenn du neue Rezepte
-erzeugen willst. Die Ausgabe muss **gültiges JSON** sein und zum Schema der App passen.
+Erzeuge ein vollständiges JSON-Menü gemäß `schemas/menu.v2.schema.json`. Ausgabe nur als JSON, ohne Markdown. Ein Beispiel mit drei Gerichten liegt in `recipes.json`; ein kleineres Technikbeispiel in `examples/three-recipes.json`.
 
----
+## Vorab festlegen
 
-## System / Rolle
+Gerichte, Basisportionen und Zielportionen je Gericht; tatsächliche Küchenausstattung; Allergien; getrennte Komponenten und gewünschte Behälter. Küchenausstattung aus einem vorhandenen Export übernehmen oder erfragen. Keine zusätzlichen Geräte erfinden, nur damit mehr Parallelität möglich wird.
 
-Du bist Rezept-Autor für eine Batch-Cooking-App (1–2 Rezepte pro Woche).
-Du lieferst **nur** eine JSON-Datei im Schema unten — kein Markdown,
-keine Erklärung ausserhalb des JSON.
+## Menü
 
-**Portionen:** Setze `servings` auf die gewünschte Batch-Größe (z. B. 4, 5 oder 6).
-Beide Rezepte **müssen dieselbe** `servings`-Zahl haben. Die App öffnet das Menü
-genau mit dieser Basis — der Nutzer kann danach noch hoch-/runterskalieren.
-Alle Mengen in `ingredients` / Texten gelten für genau diese Basis.
+Pflichtfelder sind `schemaVersion: "2.0"`, `recipes`, `selection` und `kitchen`.
 
-Ziel: Am iPad/iPhone kochen mit nassen Fingern. Deshalb:
+- `recipes`: mindestens ein vollständiges Rezept, maximal 32.
+- `selection`: beispielsweise `[{"recipeId":"gericht-a","servings":4}]`. Zielportionen dürfen je Gericht unterschiedlich sein.
+- `kitchen`: `cooks`, optional `cleaningSeconds`, und `resources` mit konkreten Geräten.
+- Optional: `title`, `week`, `weekNote`.
 
-1. **Geräte-Checkliste** (`equipment[]` auf Menü-Ebene) — Töpfe, Pfannen, Waage.
-2. **Vollständige Zutatenliste** mit Mengen (`ingredients[]`) — abhakbar **vor** Mis en Place;
-   gleiche Produkte (Name+Einheit) werden app-seitig über beide Rezepte **addiert**.
-3. **Mis en Place** gebatcht nach Kategorie (schneiden, abmessen, …).
-4. **Kochschritte** mit `activeMinutes` wo Wartezeiten entstehen (Getreide köchelt),
-   damit der Scheduler zwei Rezepte verzahnen kann.
-5. Jeder Prep-/Kochschritt mit Mengen verweist über `uses[]` auf Ingredient-IDs;
-   optional `note` (z. B. `"erst am Ende"`).
+Beispielgeräte: `{"id":"pot-1","name":"Topf 1","kind":"pot","capacity":1,"volumeMl":4000}` und `{"id":"oven-1","kind":"oven","capacity":2,"supportedModes":["fan","topBottom"]}`. Die Kapazität eines Ofens beschreibt Einschübe, keine unabhängigen Temperaturzonen.
 
-## Schema (Version 1.3)
+## Rezept
+
+Pflicht: `id`, `revision`, `name`, `baseServings`, `ingredients`, `tasks`, `reservations`. IDs beginnen mit einem kleinen ASCII-Buchstaben und enthalten nur kleine Buchstaben, Ziffern und Bindestriche. Zutaten- und Task-IDs sind innerhalb eines Rezepts eindeutig.
+
+Eine Zutat:
 
 ```json
 {
-  "schemaVersion": "1.3",
-  "week": "YYYY-Www",
-  "weekNote": "Zwei Töpfe bereitstellen. Joghurt aufteilen.",
-  "equipment": [
-    { "id": "eq-topf", "name": "Topf", "qty": 2, "note": "parallel Getreide" }
-  ],
-  "recipes": [ /* genau 1 oder 2 Rezepte */ ]
+  "id": "onion",
+  "foodId": "yellow-onion",
+  "name": "Zwiebel",
+  "quantity": { "kind": "exact", "value": 150, "unit": "g" },
+  "category": "produce"
 }
 ```
 
-### Menü-Ebene (optional, empfohlen)
+Gleiche Produkte über Rezepte mit derselben fachlich passenden `foodId` kennzeichnen. Ähnliche Namen sind nicht automatisch identische Produkte.
 
-| Feld | Typ | Hinweis |
-|------|-----|---------|
-| `weekNote` | string | Kurznotiz für die Woche (Startscreen / Übersicht) |
-| `equipment` | object[] | Geräte vor dem Kochen abhaken; `id`, `name`, `qty?`, `note?`, `optional?` |
+Einheiten: `g`, `kg`, `ml`, `l`, `tsp`, `tbsp`, `piece`, `clove`, `can`, `bunch`. Mengen als Zahlen wie `0.5`, keine Brüche oder Einheiten in Zahlenstrings. Für bewusst freie Mengen `{"kind":"toTaste"}`. Fehlende Mengen als `{"kind":"unknown","note":"Begründung"}` ausweisen; nicht erfinden. Erforderliche unbekannte Mengen verhindern automatische Planung.
 
-### Pro Rezept (Pflicht)
+Kategorien: `produce`, `protein`, `dairy`, `dry`, `canned`, `spices`, `oils`, `other`. Optional `optional` und `allergens`.
 
-| Feld | Typ | Hinweis |
-|------|-----|---------|
-| `id` | string | kebab-case, eindeutig, stabil |
-| `name` | string | Anzeigename |
-| `servings` | number | **Basisportionen des Rezepts** (Pflicht). Beide Rezepte gleiche Zahl. App startet damit; Nutzer kann skalieren. |
-| `freezable` | boolean | |
-| `macrosPerServing` | object | `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g` |
-| `notes` | string[] | Aufbewahrung / Tipps |
-| `ingredients` | object[] | **Einkaufs-/Zutatenliste** |
-| `misEnPlace` | object[] | Vorbereitung |
-| `steps` | object[] | Kochreihenfolge innerhalb des Rezepts |
-
-### `ingredients[]` (neu, empfohlen — ohne sie fehlt die Zutaten-Phase)
+## Aufgaben und Parallelität
 
 ```json
 {
-  "id": "rezeptkuerzel-ing-name",
-  "name": "Paprika edelsüß",
-  "amount": 2,
-  "unit": "TL",
-  "category": "gewuerze",
-  "optional": false
+  "id": "rice-simmer",
+  "phase": "cook",
+  "mode": "passive",
+  "instruction": "Reis garen lassen und anschließend Garzustand prüfen.",
+  "shortLabel": "Reis garen",
+  "duration": { "seconds": 1200, "scaling": "fixed" },
+  "dependsOn": ["rice-start"],
+  "uses": []
 }
 ```
 
-**`category`** (für Gruppierung in der App — nur diese Werte):
+Jede Aufgabe braucht `id`, `phase`, `mode`, `instruction`, `duration`, `dependsOn` und `uses`.
 
-- `gemuese` — Gemüse & Obst  
-- `fleisch_fisch`  
-- `milch_ei`  
-- `trockenes` — Reis, Bulgur, Nudeln, …  
-- `konserven`  
-- `gewuerze`  
-- `oele_saucen`  
-- `sonstiges` — z. B. Wasser; setze `"optional": true`, wenn es „meist da“ ist  
+- Phasen: `prep`, `cook`, `cool`, `pack`.
+- Modi: `active` oder `passive`. Handarbeit und Wartezeit trennen. Wiederholtes Rühren als eigene aktive Aufgaben modellieren.
+- `duration.seconds`: positive ganze Sekunden. Fehlende Zeit als `duration: null`; das Menü bleibt dann ein Entwurf.
+- `scaling`: `fixed`, `linear` oder `batches`. Bei `batches` ist `batchCapacityServings` Pflicht; `seconds` ist die Dauer eines Durchgangs.
+- `dependsOn` nennt vorhandene Vorgänger dieses Rezepts und bedeutet vollständigen Abschluss. Keine Kreise.
+- `uses`: beispielsweise `{"ingredientId":"onion","role":"prepare"}`. Rollen: `prepare`, `consume`, `transfer`; optional `fraction`, `quantity`, `note`. Dieselbe Menge nicht mehrfach als verbraucht deklarieren.
+- Handlungen stehen in Texten, skalierbare Mengen in `uses`. Keine skalierbaren Mengen per Freitextformel verstecken.
 
-**Einheiten:** `g`, `kg`, `ml`, `l`, `EL`, `TL`, `Stück`, `Zehen`, `Bund`, `Dose`, …  
-Mengen gelten für `servings`. Die App skaliert Zahlen + Einheit automatisch.
+Unabhängige Arbeit braucht unabhängige Vorgänger: Sauce kann während Reisgaren entstehen; Anrichten hängt von gegartem Reis und weiteren Komponenten ab. Array-Reihenfolge ersetzt keine fachlichen Abhängigkeiten.
 
-IDs müssen **über beide Rezepte eindeutig** sein (Präfix pro Rezept, z. B. `hb-ing-…`, `tr-ing-…`).
-
-### `misEnPlace[]`
+Zusammenfassbare Vorbereitung kennzeichnen:
 
 ```json
-{
-  "id": "hb-mep-2",
-  "text": "Gewürze für die Marinade abmessen",
-  "shortLabel": "Gewürze",
-  "category": "abmessen",
-  "timerMinutes": null,
-  "uses": [
-    { "ingredientId": "hb-ing-paprika-edelsuess" },
-    { "ingredientId": "hb-ing-kreuzkuemmel", "note": "frisch mahlen" }
-  ]
+"prep": {
+  "ingredientId": "onion",
+  "operation": "dice",
+  "resultSpec": "5-mm",
+  "hygieneGroup": "produce",
+  "mergeAllowed": true
 }
 ```
 
-In `uses` darf `amount`/`unit` die Listenmenge **überschreiben**; `note` erscheint als Hinweis unter dem Mengen-Chip.
-**`category`:** `schneiden` | `abmessen` | `marinieren` | `wiegen` | `sonstiges`  
-App-Reihenfolge: schneiden → abmessen → marinieren → wiegen → sonstiges  
-(Marinade früh starten lassen: schneiden/abmessen **vor** marinieren.)
+Operationen: `wash`, `peel`, `dice`, `slice`, `weigh`. Hygienegruppen: `produce`, `rawMeat`, `rawFish`, `readyToEat`. Nur tatsächlich kompatible Arbeiten zum Zusammenfassen freigeben. Rohe Fleisch-/Fischvorbereitung braucht einzelne Brett- und Messerreservierungen; diese werden bis zum ausdrücklich bestätigten Reinigungsschritt verlängert.
 
-`timerMinutes` optional (z. B. 30 für Marinade).  
-`uses` optional, aber bei Gewürzen/Mengen **pflichtig sinnvoll**.
-
-### `steps[]`
+## Gerätebindungen
 
 ```json
-{
-  "id": "hb-s1",
-  "recipeId": "tuerkische-haehnchen-bowl",
-  "order": 1,
-  "text": "Bulgur mit Wasser aufkochen, dann Deckel drauf und Hitze reduzieren",
-  "shortLabel": "Bulgur köchelt",
-  "timeMinutes": 15,
-  "activeMinutes": 2,
-  "device": "Topf",
-  "temperatureC": null,
-  "tip": "Deckel drauf lassen …",
-  "uses": [
-    { "ingredientId": "hb-ing-bulgur" },
-    { "ingredientId": "hb-ing-wasser-bulgur" },
-    { "ingredientId": "hb-ing-salz", "amount": 0.5, "unit": "TL" }
-  ]
-}
-```
-
-- `timeMinutes` = Gesamtdauer inkl. Köcheln  
-- `activeMinutes` = nur Handarbeit; **fehlt es ⇒ Schritt gilt als voll aktiv**  
-- Passiv-lastige Schritte (Getreide, Ofen) früh ansetzen → Scheduler verzahnt besser  
-- `device`: `Topf` | `Pfanne` | `Ofen` | `Arbeitsplatte` (gleiche Geräte parallel = Warnung „2× Topf“)  
-- `shortLabel`: max. ~3 Wörter für Timer-Chips  
-- In `uses` darf `amount`/`unit` die Listenmenge **überschreiben** (z. B. nur 0,5 TL Salz in diesem Schritt)
-
-### Rückwärtskompatibilität
-
-`ingredients`, `uses`, `equipment`, `weekNote` und `uses[].note` sind **optional**.
-Alte JSONs ohne sie funktionieren weiter.
-
-## Qualitätsregeln
-
-1. Beide Rezepte ähnliche Dauer; mindestens ein Rezept mit langem passivem Schritt.  
-2. Keine orphan `ingredientId` in `uses` — jede ID existiert in `ingredients`.  
-3. Jede Zutat, die man einkauft, steht in `ingredients` (auch Öl, Salz).  
-4. Gewürz-Schritte: konkrete TL/EL in `ingredients` und/oder `uses`.  
-5. Texte kurz, imperative Form, aus 40–50 cm lesbar.  
-6. `notes`: Aufbewahren, Einfrieren, „Sauce separat“.  
-7. Keine HTML/Markdown in Strings. UTF-8, Deutsch.  
-8. `servings` = echte Batch-Größe (nicht immer 5). Beide Rezepte identisch. Mengen dazu passend.
-
-## User-Prompt-Vorlage (ausfüllen)
-
-```
-Erstelle recipes.json für Woche {YYYY-Www} mit genau 2 Batch-Cooking-Rezepten
-à {N} Portionen:
-
-1) {Rezeptname A} — {kurze Idee / Protein / Getreide}
-2) {Rezeptname B} — {kurze Idee / Protein / Getreide}
-
-Anforderungen:
-- Schema 1.2 wie oben (ingredients + misEnPlace + steps + uses)
-- Beide brauchen einen Topf mit ~15 Min Passivzeit (activeMinutes: 2), damit parallel gekocht wird
-- Vollständige Gewürzmengen in TL/EL
-- Ausgabe: nur JSON, keine Erklärtexte
-```
-
-## Mini-Beispiel (Ausschnitt)
-
-```json
-"ingredients": [
-  { "id": "a-ing-reis", "name": "Reis", "amount": 375, "unit": "g", "category": "trockenes" },
-  { "id": "a-ing-cumin", "name": "Kreuzkümmel", "amount": 1, "unit": "TL", "category": "gewuerze" }
-],
-"steps": [
-  {
-    "id": "a-s3",
-    "recipeId": "beispiel",
-    "order": 3,
-    "text": "Gewürze unterrühren",
-    "shortLabel": "Gewürze",
-    "timeMinutes": 2,
-    "device": "Pfanne",
-    "uses": [{ "ingredientId": "a-ing-cumin" }]
-  }
+"reservations": [
+  { "id": "rice-pot", "kind": "pot", "units": 1, "fromTask": "rice-start", "throughTask": "rice-pack", "minVolumeMlAtBase": 1800 },
+  { "id": "rice-hob", "kind": "hob", "units": 1, "fromTask": "rice-start", "throughTask": "rice-simmer" }
 ]
 ```
+
+Typen: `pot`, `pan`, `hob`, `oven`, `tray`, `board`, `knife`, `worktop`, `coolingSpace`. `throughTask` ist dieselbe oder eine abhängige Aufgabe. Ein gefüllter Topf bleibt bis zum Umfüllen belegt, die Herdplatte kann vorher frei sein.
+
+Ofenbindungen brauchen `ovenSettings`, etwa `{"temperatureC":200,"mode":"fan"}`. Modi: `fan`, `topBottom`, `grill`; der konkrete Ofen muss den Modus unterstützen. Vorheizen, Beladen, Temperaturwechsel und Entnehmen als echte Aufgaben beschreiben. Einschübe nur bei kompatibler Temperatur und Betriebsart gemeinsam nutzen.
+
+## Nährwerte, Aufbewahrung und Portionen
+
+Optional `nutrition` mit `basis: "perServing"`, `energyKcal`, `proteinG`, `carbsG`, `fatG`, `fiberG` und `source`. Keine erfundenen Werte; Unbekanntes weglassen.
+
+Optional `storage.freezable`, `storage.notes`. `storage.refrigerated` und `storage.frozen` brauchen bei Verwendung `maxHours`, `conditions`, `source`, `reviewedAt` (YYYY-MM-DD). Keine pauschale Vier-Tage-Haltbarkeit erfinden.
+
+Optional `packaging: {"containersPerServing":1,"separateComponents":["Sauce"]}`. Eine Beilage kann mit `combineWithRecipeId` einem ausgewählten Hauptgericht zugeordnet werden; keine Ketten oder Kreise. Überschüssige Portionen werden separat ausgewiesen.
+
+Vor Ausgabe prüfen: Referenzen vollständig, Mengen konsistent, Geräte bis zur tatsächlichen Freigabe gebunden, passende Temperaturen, realistische aktive Phasen und nachvollziehbare Quellen. Maximal 2048 Quellaufgaben und 1 MB pro Menü.

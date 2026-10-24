@@ -1,0 +1,520 @@
+{
+  "schemaVersion": "2.0",
+  "recipes": [
+    {
+      "id": "rice-onion",
+      "revision": 1,
+      "name": "Reis mit Zwiebeln · Modellbeispiel",
+      "baseServings": 4,
+      "ingredients": [
+        {
+          "id": "onion",
+          "foodId": "onion",
+          "name": "Zwiebel",
+          "quantity": {
+            "kind": "exact",
+            "value": 150,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "rice",
+          "foodId": "rice",
+          "name": "Reis",
+          "quantity": {
+            "kind": "exact",
+            "value": 300,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "water",
+          "foodId": "water",
+          "name": "Wasser",
+          "quantity": {
+            "kind": "exact",
+            "value": 600,
+            "unit": "ml"
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "id": "chop",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Zwiebeln würfeln und für dieses Gericht bereitstellen.",
+          "duration": {
+            "seconds": 180,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "onion",
+              "role": "prepare",
+              "fraction": 1
+            }
+          ],
+          "prep": {
+            "ingredientId": "onion",
+            "operation": "dice",
+            "resultSpec": "5-mm",
+            "hygieneGroup": "produce",
+            "mergeAllowed": true
+          }
+        },
+        {
+          "id": "start",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "Zwiebeln dünsten, weitere Zutaten zugeben und aufkochen.",
+          "duration": {
+            "seconds": 240,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "chop"
+          ],
+          "uses": [
+            {
+              "ingredientId": "onion",
+              "role": "consume",
+              "fraction": 1
+            },
+            {
+              "ingredientId": "rice",
+              "role": "consume",
+              "fraction": 1
+            },
+            {
+              "ingredientId": "water",
+              "role": "consume",
+              "fraction": 1
+            }
+          ]
+        },
+        {
+          "id": "simmer",
+          "phase": "cook",
+          "mode": "passive",
+          "instruction": "Bei passender Hitze garen; Garzustand vor dem Portionieren prüfen.",
+          "duration": {
+            "seconds": 1200,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "start"
+          ],
+          "uses": []
+        },
+        {
+          "id": "pack",
+          "phase": "pack",
+          "mode": "active",
+          "instruction": "Auf die gewählten Portionen aufteilen.",
+          "duration": {
+            "seconds": 180,
+            "scaling": "linear"
+          },
+          "dependsOn": [
+            "simmer"
+          ],
+          "uses": []
+        }
+      ],
+      "reservations": [
+        {
+          "id": "board",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "chop",
+          "throughTask": "chop"
+        },
+        {
+          "id": "pot",
+          "kind": "pot",
+          "units": 1,
+          "fromTask": "start",
+          "throughTask": "pack",
+          "minVolumeMlAtBase": 1500
+        },
+        {
+          "id": "hob",
+          "kind": "hob",
+          "units": 1,
+          "fromTask": "start",
+          "throughTask": "simmer"
+        }
+      ],
+      "packaging": {
+        "containersPerServing": 1,
+        "separateComponents": []
+      },
+      "storage": {
+        "notes": [
+          "Aufbewahrungsdauer und Bedingungen vor Veröffentlichung fachlich prüfen."
+        ]
+      }
+    },
+    {
+      "id": "lentils-onion",
+      "revision": 1,
+      "name": "Linsen mit Zwiebeln · Modellbeispiel",
+      "baseServings": 3,
+      "ingredients": [
+        {
+          "id": "onion",
+          "foodId": "onion",
+          "name": "Zwiebel",
+          "quantity": {
+            "kind": "exact",
+            "value": 100,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "lentils",
+          "foodId": "lentils",
+          "name": "Linsen",
+          "quantity": {
+            "kind": "exact",
+            "value": 300,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "water",
+          "foodId": "water",
+          "name": "Wasser",
+          "quantity": {
+            "kind": "exact",
+            "value": 900,
+            "unit": "ml"
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "id": "chop",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Zwiebeln würfeln und für dieses Gericht bereitstellen.",
+          "duration": {
+            "seconds": 180,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "onion",
+              "role": "prepare",
+              "fraction": 1
+            }
+          ],
+          "prep": {
+            "ingredientId": "onion",
+            "operation": "dice",
+            "resultSpec": "5-mm",
+            "hygieneGroup": "produce",
+            "mergeAllowed": true
+          }
+        },
+        {
+          "id": "start",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "Zwiebeln dünsten, weitere Zutaten zugeben und aufkochen.",
+          "duration": {
+            "seconds": 240,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "chop"
+          ],
+          "uses": [
+            {
+              "ingredientId": "onion",
+              "role": "consume",
+              "fraction": 1
+            },
+            {
+              "ingredientId": "lentils",
+              "role": "consume",
+              "fraction": 1
+            },
+            {
+              "ingredientId": "water",
+              "role": "consume",
+              "fraction": 1
+            }
+          ]
+        },
+        {
+          "id": "simmer",
+          "phase": "cook",
+          "mode": "passive",
+          "instruction": "Bei passender Hitze garen; Garzustand vor dem Portionieren prüfen.",
+          "duration": {
+            "seconds": 1500,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "start"
+          ],
+          "uses": []
+        },
+        {
+          "id": "pack",
+          "phase": "pack",
+          "mode": "active",
+          "instruction": "Auf die gewählten Portionen aufteilen.",
+          "duration": {
+            "seconds": 180,
+            "scaling": "linear"
+          },
+          "dependsOn": [
+            "simmer"
+          ],
+          "uses": []
+        }
+      ],
+      "reservations": [
+        {
+          "id": "board",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "chop",
+          "throughTask": "chop"
+        },
+        {
+          "id": "pot",
+          "kind": "pot",
+          "units": 1,
+          "fromTask": "start",
+          "throughTask": "pack",
+          "minVolumeMlAtBase": 1500
+        },
+        {
+          "id": "hob",
+          "kind": "hob",
+          "units": 1,
+          "fromTask": "start",
+          "throughTask": "simmer"
+        }
+      ],
+      "packaging": {
+        "containersPerServing": 1,
+        "separateComponents": []
+      },
+      "storage": {
+        "notes": [
+          "Aufbewahrungsdauer und Bedingungen vor Veröffentlichung fachlich prüfen."
+        ]
+      }
+    },
+    {
+      "id": "oven-carrots",
+      "revision": 1,
+      "name": "Ofenkarotten · Modellbeispiel",
+      "baseServings": 4,
+      "ingredients": [
+        {
+          "id": "carrot",
+          "foodId": "carrot",
+          "name": "Karotten",
+          "quantity": {
+            "kind": "exact",
+            "value": 600,
+            "unit": "g"
+          }
+        }
+      ],
+      "tasks": [
+        {
+          "id": "switch-on",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "Ofen auf 200 °C Umluft einschalten.",
+          "duration": {
+            "seconds": 30,
+            "scaling": "fixed"
+          },
+          "dependsOn": [],
+          "uses": []
+        },
+        {
+          "id": "preheat",
+          "phase": "cook",
+          "mode": "passive",
+          "instruction": "Ofen vorheizen lassen.",
+          "duration": {
+            "seconds": 600,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "switch-on"
+          ],
+          "uses": []
+        },
+        {
+          "id": "cut",
+          "phase": "prep",
+          "mode": "active",
+          "instruction": "Karotten in gleichmäßige Stücke schneiden.",
+          "duration": {
+            "seconds": 360,
+            "scaling": "linear"
+          },
+          "dependsOn": [],
+          "uses": [
+            {
+              "ingredientId": "carrot",
+              "role": "prepare",
+              "fraction": 1
+            }
+          ]
+        },
+        {
+          "id": "load",
+          "phase": "cook",
+          "mode": "active",
+          "instruction": "Karotten auf dem Blech verteilen und einschieben.",
+          "duration": {
+            "seconds": 120,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "preheat",
+            "cut"
+          ],
+          "uses": [
+            {
+              "ingredientId": "carrot",
+              "role": "consume",
+              "fraction": 1
+            }
+          ]
+        },
+        {
+          "id": "bake",
+          "phase": "cook",
+          "mode": "passive",
+          "instruction": "Karotten backen; danach Garzustand prüfen.",
+          "duration": {
+            "seconds": 1200,
+            "scaling": "fixed"
+          },
+          "dependsOn": [
+            "load"
+          ],
+          "uses": []
+        },
+        {
+          "id": "pack",
+          "phase": "pack",
+          "mode": "active",
+          "instruction": "Gegarte Karotten portionieren.",
+          "duration": {
+            "seconds": 180,
+            "scaling": "linear"
+          },
+          "dependsOn": [
+            "bake"
+          ],
+          "uses": []
+        }
+      ],
+      "reservations": [
+        {
+          "id": "board",
+          "kind": "board",
+          "units": 1,
+          "fromTask": "cut",
+          "throughTask": "cut"
+        },
+        {
+          "id": "oven",
+          "kind": "oven",
+          "units": 1,
+          "fromTask": "switch-on",
+          "throughTask": "pack",
+          "ovenSettings": {
+            "temperatureC": 200,
+            "mode": "fan"
+          }
+        },
+        {
+          "id": "tray",
+          "kind": "tray",
+          "units": 1,
+          "fromTask": "load",
+          "throughTask": "pack"
+        }
+      ],
+      "packaging": {
+        "containersPerServing": 1
+      }
+    }
+  ],
+  "selection": [
+    {
+      "recipeId": "rice-onion",
+      "servings": 4
+    },
+    {
+      "recipeId": "lentils-onion",
+      "servings": 6
+    },
+    {
+      "recipeId": "oven-carrots",
+      "servings": 4
+    }
+  ],
+  "kitchen": {
+    "cooks": 1,
+    "resources": [
+      {
+        "id": "pot-1",
+        "kind": "pot",
+        "capacity": 1,
+        "volumeMl": 4000
+      },
+      {
+        "id": "pot-2",
+        "kind": "pot",
+        "capacity": 1,
+        "volumeMl": 4000
+      },
+      {
+        "id": "hob-1",
+        "kind": "hob",
+        "capacity": 1
+      },
+      {
+        "id": "hob-2",
+        "kind": "hob",
+        "capacity": 1
+      },
+      {
+        "id": "oven-1",
+        "kind": "oven",
+        "capacity": 2,
+        "supportedModes": [
+          "fan",
+          "topBottom"
+        ]
+      },
+      {
+        "id": "tray-1",
+        "kind": "tray",
+        "capacity": 1
+      },
+      {
+        "id": "board-1",
+        "kind": "board",
+        "capacity": 1
+      }
+    ]
+  }
+}
