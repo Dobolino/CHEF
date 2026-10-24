@@ -15,7 +15,8 @@ const stickySizes = new ResizeObserver(() => {
   document.documentElement.style.setProperty('--header-height', `${header.getBoundingClientRect().height}px`);
   document.documentElement.style.setProperty('--timer-height', `${$('timerRail').getBoundingClientRect().height}px`);
 });
-stickySizes.observe(header); stickySizes.observe($('timerRail'));
+stickySizes.observe(header, { box: 'border-box' });
+stickySizes.observe($('timerRail'), { box: 'border-box' });
 let store;
 try { store = createStore(localStorage); } catch { store = createStore({ getItem() { throw new Error('Browserspeicher ist nicht zugänglich.'); } }); }
 let graph = null, forecast = null, graphSignature = '', validation = { errors: [], blockers: [], warnings: [] }, planError = '', graphError = '';

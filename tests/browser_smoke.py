@@ -73,7 +73,7 @@ with sync_playwright() as p:
     assert not page.get_by_role('link',name='Einkauf',exact=True).count()
     page.locator('.navigation a[href="#cook"]').click()
     page.wait_for_function('document.body.dataset.view==="cook"')
-    assert page.locator('.navigation a[aria-current="page"]').inner_text() == 'Kochen'
+    assert page.locator('.navigation a[aria-current="page"]').inner_text() == 'Kochmodus'
     page.locator('.navigation a[href="#overview"]').click()
     page.wait_for_function('document.body.dataset.view==="overview"')
     ok('Four navigation destinations work without shopping or kitchen setup')
@@ -251,6 +251,24 @@ with sync_playwright() as p:
     assert page.evaluate("getComputedStyle(document.documentElement).touchAction")=='pan-x pan-y'
     assert 'user-scalable=no' in page.locator('meta[name="viewport"]').get_attribute('content')
     ok('Touch zoom gestures are blocked while single-finger scrolling remains available')
+    for inset in [24,59]:
+        page.evaluate('(inset)=>document.documentElement.style.setProperty("--safe-top",inset+"px")',inset)
+        page.evaluate('window.scrollTo(0,600)')
+        page.wait_for_function('''() => {
+          const header=document.querySelector('.topbar').getBoundingClientRect();
+          const timer=document.querySelector('#timerRail').getBoundingClientRect();
+          return timer.top >= header.bottom-1;
+        }''')
+        geometry=page.evaluate('''() => {
+          const controls=[document.querySelector('.brand'),...document.querySelectorAll('.navigation a')];
+          return {top:Math.min(...controls.map(e=>e.getBoundingClientRect().top)),
+            reachable:[...document.querySelectorAll('.navigation a')].every(e=>{
+              const r=e.getBoundingClientRect();
+              return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('a')===e;
+            })};
+        }''')
+        assert geometry['top']>=inset+9 and geometry['reachable'],(inset,geometry)
+    ok('Changing iPad status-bar insets keeps navigation reachable and the timer rail below the header')
     legacy_context.close()
     for name,width,height in [('iphone-se',320,568),('iphone',390,844),('iphone-landscape',844,390),('ipad-landscape',1024,768),('ipad-portrait',768,1024)]:
         context = browser.new_context(viewport={'width':width,'height':height},is_mobile=True,has_touch=True)
