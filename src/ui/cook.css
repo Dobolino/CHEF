@@ -167,6 +167,37 @@ body[data-cooking="focus"] .cook-instruction { font-size: clamp(26px, 3.5vw, 44p
 .cook-step-actions .cook-primary { min-width: 0; }
 .timer-chip.paused { border-style: dashed; }
 .timer-chip.paused .countdown::before { content: 'Ⅱ '; font-size: 14px; color: var(--yellow); }
+.timer-rail { gap: 8px; }
+.timer-chip {
+  position: relative;
+  flex: 1 0 calc((100% - 8px) / 2);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  max-width: 400px;
+  min-height: 84px;
+  padding: 10px 10px 6px;
+  overflow: hidden;
+  border-color: var(--line);
+}
+.timer-chip::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--timer-fill, var(--mint)); }
+.timer-chip[data-selected="true"] { border-color: var(--timer-color); background: var(--raised); }
+.timer-chip .timer-label { display: block; width: 100%; max-width: none; min-width: 0; font-size: 11px; line-height: 1.3; }
+.timer-label > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timer-chip small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; margin-top: 3px; }
+.timer-clock { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.timer-status { font-size: 10px; color: var(--muted); font-weight: 500; }
+.timer-chip .countdown { min-width: 0; font-size: 20px; line-height: 1.2; color: var(--timer-color); }
+.timer-chip.elapsed .countdown { color: var(--red); }
+.timer-chip.elapsed { border-color: var(--red); }
+.cook-action-bar .timer-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; }
+.cook-action-bar .big-timer { width: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; }
+.cook-action-bar .cook-finish { font-size: 12px; padding-inline: 8px; }
+@media (min-width: 650px) {
+  .timer-chip { flex-basis: 200px; }
+}
 body[data-cooking="focus"] .cook-primary { position: static; min-height: 64px; margin: 0; width: 100%; box-shadow: none; }
 .cook-secondary { min-height: 44px; }
 .cook-manual { color: var(--muted); font-size: 12px; }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compileGraph } from '../src/planning/graph.js';
-import { readiness, plan, runtimeLocks } from '../src/planning/scheduler.js';
+import { readiness, plan, runtimeLocks, canWaitForTimer } from '../src/planning/scheduler.js';
 import { newSession, reduceSession, isComplete, timerRows } from '../src/session/state.js';
 import { createStore, STORAGE_KEY } from '../src/session/store.js';
 import { timerRemainingMs } from '../src/session/timers.js';
@@ -12,6 +12,63 @@ function fixture() {
   const doc = menu([recipe('a', [task('start', 2), task('wait', 20, { mode: 'passive', deps: ['start'] }), task('pack', 1, { deps: ['wait'] })], [hold('pot', 'pot', 'start', 'pack')])]);
   return { doc, graph: compileGraph(doc) };
 }
+test('continuing timed handwork permits two cooking timers and independent completion without releasing cookware or prerequisites', () => {
+  const cook = id => recipe(id, [task('cook', 120), task('pack', 10, { deps: ['cook'] })], [hold('pot', 'pot', 'cook', 'pack')]);
+  const doc = menu([cook('potatoes'), cook('rice'), recipe('salad', [task('chop', 10)]), cook('third')]);
+  const graph = compileGraph(doc), storage = memoryStorage(), store = createStore(storage); store.activate(doc);
+  let s = reduceSession(graph, newSession(), { type: 'START', id: 'potatoes/cook' }, 1000);
+  assert.equal(readiness(graph, s, 'rice/cook').ready, false);
+  const deadline = s.timers['potatoes/cook'].endsAt;
+  s = reduceSession(graph, s, { type: 'WAIT_FOR_TIMER', id: 'potatoes/cook' }, 2000);
+  assert.equal(s.tasks['potatoes/cook'].status, 'running');
+  assert.equal(s.timers['potatoes/cook'].endsAt, deadline);
+  assert.equal(readiness(graph, s, 'potatoes/pack').ready, false);
+  assert.equal(readiness(graph, s, 'rice/cook').ready, true);
+  s = reduceSession(graph, s, { type: 'START', id: 'rice/cook' }, 2000);
+  s = reduceSession(graph, s, { type: 'PAUSE_TIMER', id: 'rice/cook' }, 3000);
+  s = reduceSession(graph, s, { type: 'WAIT_FOR_TIMER', id: 'rice/cook' }, 3000);
+  assert.equal(readiness(graph, s, 'third/cook').ready, false, 'both pots remain occupied');
+  const forecast = plan(graph, { session: s, now: 3000 });
+  assert.equal(forecast.entries.find(e => e.taskId === 'salad/chop').start, 0);
+  s = reduceSession(graph, s, { type: 'START', id: 'salad/chop', startTimer: false }, 3000);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'salad/chop' }, 4000);
+  assert.equal(s.timers['potatoes/cook'].state, 'running');
+  assert.equal(s.timers['rice/cook'].state, 'paused');
+  store.commit(next => { next.current.session = s; });
+  const restored = createStore(storage); assert.equal(restored.loadError, null);
+  s = restored.state.current.session;
+  assert.equal(s.tasks['potatoes/cook'].waitingForTimer, true);
+  assert.equal(runtimeLocks(graph, s).filter(l => l.resourceId.startsWith('pot-')).length, 2);
+  assert.equal(runtimeLocks(graph, s).some(l => l.resourceId.startsWith('@cook/')), false);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'potatoes/cook' }, 5000);
+  assert.equal(timerRows(s, graph).length, 1);
+  assert.equal(s.timers['rice/cook'].state, 'paused');
+  assert.equal(readiness(graph, s, 'potatoes/pack').ready, true);
+});
+test('waiting for a timer cannot bypass raw-food cleaning or untimed hands-on work', () => {
+  const raw = task('raw', 20, { phase: 'prep', prep: { ingredientId: 'water', operation: 'dice', resultSpec: 'cubes', hygieneGroup: 'rawMeat', mergeAllowed: false } });
+  const graph = compileGraph(menu([recipe('a', [raw], [hold('board', 'board', 'raw', 'raw')]), recipe('b', [task('chop', 10)])]));
+  let s = reduceSession(graph, newSession(), { type: 'START', id: 'a/raw' }, 0);
+  assert.equal(canWaitForTimer(graph, s, 'a/raw'), false);
+  assert.throws(() => reduceSession(graph, s, { type: 'WAIT_FOR_TIMER', id: 'a/raw' }, 1000), /Reinigung/);
+  assert.equal(readiness(graph, s, 'b/chop').ready, false);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/raw' }, 2000);
+  assert.equal(readiness(graph, s, 'b/chop').ready, false);
+  assert.equal(readiness(graph, s, 'a/raw~clean').ready, true);
+  const plain = compileGraph(menu([recipe('a', [task('chop', 10)])]));
+  const work = reduceSession(plain, newSession(), { type: 'START', id: 'a/chop', startTimer: false }, 0);
+  assert.throws(() => reduceSession(plain, work, { type: 'WAIT_FOR_TIMER', id: 'a/chop' }, 1000));
+});
+test('acknowledging an alarm keeps its step timer visible until actual completion', () => {
+  const { graph } = fixture();
+  let s = reduceSession(graph, newSession(), { type: 'START', id: 'a/start' }, 0);
+  s = reduceSession(graph, s, { type: 'TICK' }, 3000);
+  s = reduceSession(graph, s, { type: 'ACK', id: 'a/start' }, 3000);
+  assert.equal(timerRows(s, graph)[0].state, 'acknowledged');
+  assert.equal(s.tasks['a/start'].status, 'elapsed');
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/start' }, 3000);
+  assert.equal(timerRows(s, graph).length, 0);
+});
 test('manual timer start, pause and reload preserve remaining time, resources and recipe data', () => {
   const doc = menu([recipe('a', [task('work', 60)]), recipe('b', [task('other', 10)])]);
   const graph = compileGraph(doc), storage = memoryStorage(), store = createStore(storage); store.activate(doc);

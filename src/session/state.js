@@ -1,4 +1,4 @@
-import { readiness } from '../planning/scheduler.js';
+import { readiness, canWaitForTimer } from '../planning/scheduler.js';
 import { timerRemainingMs } from './timers.js';
 
 export function newSession() {
@@ -46,6 +46,10 @@ export function reduceSession(graph, current, action, now = Date.now()) {
       if (timer) { timer.state = 'acknowledged'; timer.endsAt ??= now; delete timer.remainingMs; }
       if (isComplete(graph, session)) session.cookedAt = now;
       break;
+    case 'WAIT_FOR_TIMER':
+      if (!canWaitForTimer(graph, session, task.id)) throw new Error('Diesen Handgriff einschließlich nötiger Reinigung zuerst abschließen.');
+      record.waitingForTimer = true;
+      break;
     case 'SKIP':
       if (record && record.status !== 'pending' && record.status !== 'skipped') throw new Error('Laufende Schritte können nicht übersprungen werden.');
       session.tasks[task.id] = { status: 'skipped', startedAt: null, completedAt: null };
@@ -88,7 +92,8 @@ export function reduceSession(graph, current, action, now = Date.now()) {
 }
 
 export function timerRows(session, graph) {
-  const regular = Object.entries(session.timers).filter(([, t]) => t.state !== 'acknowledged' && t.state !== 'cancelled')
+  const regular = Object.entries(session.timers).filter(([id, t]) => t.state !== 'cancelled'
+    && (t.state !== 'acknowledged' || session.tasks[id]?.status !== 'completed'))
     .map(([id, t]) => ({ id, ...t, legacy: false, label: graph?.byId.get(id)?.shortLabel || id,
       recipeNames: graph?.byId.get(id)?.recipeNames || [], mode: graph?.byId.get(id)?.mode }));
   const legacy = Object.entries(session.legacyTimers).filter(([, t]) => !['acknowledged', 'cancelled'].includes(t.state))

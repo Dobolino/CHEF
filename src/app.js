@@ -2,7 +2,7 @@ import { importMenu, validateDocument } from './data/validate.js';
 import { stableJSON, parseJSON } from './data/json.js';
 import { shoppingList, formatQuantity } from './data/units.js';
 import { compileGraph } from './planning/graph.js';
-import { plan, readiness, runtimeLocks } from './planning/scheduler.js';
+import { plan, readiness, runtimeLocks, canWaitForTimer } from './planning/scheduler.js';
 import { newSession, reduceSession, hasProgress, timerRows, isComplete } from './session/state.js';
 import { timerRemainingMs } from './session/timers.js';
 import { createStore, inspectBackup } from './session/store.js';
@@ -179,14 +179,22 @@ function renderTimers() {
     if (!node) {
       node = document.createElement('button'); node.type = 'button'; node.className = 'timer-chip';
       node.dataset.timerId = row.id; node.dataset.legacy = String(row.legacy);
-      node.innerHTML = '<span class="timer-label"><span></span><small></small></span><span class="countdown mono" aria-hidden="true"></span>';
+      node.innerHTML = '<span class="timer-label"><span></span><small></small></span><span class="timer-clock"><span class="timer-status"></span><span class="countdown mono" aria-hidden="true"></span></span>';
       $('timerRail').appendChild(node); railNodes.set(key, node);
     }
     node.firstElementChild.firstElementChild.textContent = row.label;
-    node.querySelector('small').textContent = `${row.recipeNames.join(' + ')}${row.legacy ? '' : ` · ${devicesForTask(row.id) || (row.mode === 'passive' ? 'Wartezeit' : 'Handarbeit')}`}`;
-    node.classList.toggle('elapsed', row.state === 'elapsed');
+    const context = `${row.recipeNames.join(' + ')}${row.legacy ? '' : ` · ${devicesForTask(row.id) || (row.mode === 'passive' ? 'Wartezeit' : 'Handarbeit')}`}`;
+    node.querySelector('small').textContent = context;
+    const colors = (graph?.byId.get(row.id)?.recipeIds || []).map(id => views.recipeColor(current.document, id));
+    node.style.setProperty('--timer-color', colors[0] || 'var(--mint)');
+    node.style.setProperty('--timer-fill', colors.length > 1 ? `linear-gradient(90deg, ${colors.join(', ')})` : colors[0] || 'var(--mint)');
+    node.dataset.selected = String(!row.legacy && row.id === selectedTaskId && route() === 'cook');
+    node.dataset.state = row.state;
+    node.dataset.context = context;
+    node.querySelector('.timer-status').textContent = ['elapsed', 'acknowledged'].includes(row.state) ? 'Zeit vorbei' : row.state === 'paused' ? 'Pausiert' : 'Läuft';
+    node.title = `${row.label} · ${context}`;
+    node.classList.toggle('elapsed', ['elapsed', 'acknowledged'].includes(row.state));
     node.classList.toggle('paused', row.state === 'paused');
-    node.setAttribute('aria-label', `${row.label}. ${row.state === 'elapsed' ? 'Abgelaufen' : row.state === 'paused' ? 'Timer pausiert' : 'Timer läuft'}. ${row.legacy ? 'Zum Quittieren öffnen' : 'Schritt öffnen'}.`);
   }
   $('timerRail').hidden = rows.length === 0; updateCountdowns();
 }
@@ -195,7 +203,12 @@ function updateCountdowns() {
   for (const [key, node] of railNodes) {
     const legacy = key.startsWith('legacy:'), id = legacy ? key.slice(7) : key;
     const timer = legacy ? session.legacyTimers[id] : session.timers[id];
-    if (timer) node.querySelector('.countdown').textContent = timer.state === 'elapsed' ? 'Prüfen' : views.countdown(timerRemainingMs(timer) / 1000);
+    if (timer) {
+      const remaining = views.countdown(timerRemainingMs(timer) / 1000);
+      const ended = ['elapsed', 'acknowledged'].includes(timer.state);
+      node.querySelector('.countdown').textContent = ended ? 'Prüfen' : remaining;
+      node.setAttribute('aria-label', `${node.querySelector('.timer-label > span').textContent}. ${node.dataset.context}. ${ended ? 'Abgelaufen, prüfen' : `${timer.state === 'paused' ? 'Pausiert' : 'Läuft'}, Restzeit ${remaining}`}. ${legacy ? 'Zum Quittieren öffnen' : 'Schritt öffnen'}.`);
+    }
   }
   for (const output of document.querySelectorAll('[data-main-timer]')) {
     const timer = session.timers[output.dataset.mainTimer];
@@ -260,8 +273,26 @@ $('timerForm').addEventListener('submit', event => {
 function browseTask(delta) {
   if (!graph) return;
   const index = timelineOrder.indexOf(currentTask()?.id);
-  selectedTaskId = timelineOrder[Math.max(0, Math.min(timelineOrder.length - 1, index + delta))];
-  navigate('cook');
+  selectCookingTask(timelineOrder[Math.max(0, Math.min(timelineOrder.length - 1, index + delta))]);
+}
+function waitForCurrentTimer() {
+  const id = currentTask()?.id, session = store.state.current?.session;
+  if (graph && session && canWaitForTimer(graph, session, id)) act({ type: 'WAIT_FOR_TIMER', id });
+}
+function selectCookingTask(id) {
+  if (id !== currentTask()?.id) waitForCurrentTimer();
+  selectedTaskId = id; navigate('cook');
+}
+function continueCooking() {
+  waitForCurrentTimer(); prepare();
+  const session = store.state.current.session;
+  const ordered = forecast?.entries.map(e => graph.byId.get(e.taskId)) || graph.tasks;
+  const next = ordered.find(t => readiness(graph, session, t.id).ready);
+  if (next) { selectCookingTask(next.id); $('viewRoot').querySelector('.cook-primary')?.focus({ preventScroll: true }); }
+  else {
+    renderCookSteps(); $('cookStepsDialog').showModal();
+    toast('Momentan ist kein neuer Schritt verfügbar. Laufende Timer bleiben aktiv.');
+  }
 }
 function markAllReady() {
   store.commit(next => {
@@ -334,7 +365,7 @@ document.addEventListener('click', event => {
       if (old.state === 'elapsed') { alarmId = timer.dataset.timerId; alarmLegacy = true; syncAlarm(); }
       else void guarded(async () => { if (await confirm('Übernommenen Timer beenden?', 'Damit endet nur die Timerüberwachung. Den tatsächlichen Kochvorgang prüfen und beenden. Der alte Fortschritt bleibt in der Datensicherung enthalten.', 'Timer beenden')) act({ type: 'ACK_LEGACY', id: timer.dataset.timerId }); });
     }
-    else { selectedTaskId = timer.dataset.timerId; navigate('cook'); }
+    else void guarded(() => selectCookingTask(timer.dataset.timerId));
     return;
   }
   const target = event.target.closest('[data-action]'); if (!target) return;
@@ -375,10 +406,11 @@ document.addEventListener('click', event => {
       case 'resume-timer': browser.unlockAudio(); act({ type: 'RESUME_TIMER', id }); break;
       case 'previous-task': browseTask(-1); break;
       case 'following-task': browseTask(1); break;
+      case 'continue-cooking': continueCooking(); break;
       case 'complete-task': await completeTask(id); break;
       case 'next-ready': nextReady(); break;
       case 'cook-steps': renderCookSteps(); $('cookStepsDialog').showModal(); break;
-      case 'select-task': $('cookStepsDialog').close(); selectedTaskId = id; navigate('cook'); break;
+      case 'select-task': $('cookStepsDialog').close(); selectCookingTask(id); break;
       case 'adjust-timer': act({ type: 'ADJUST', id, seconds: Number(target.dataset.seconds) }); break;
       case 'skip-task':
         if (await confirm('Für später überspringen?', 'Abhängige Schritte bleiben gesperrt. Vor dem Abschluss musst du diesen Schritt nachholen.', 'Für später markieren')) { act({ type: 'SKIP', id }); nextReady(); } break;
@@ -388,7 +420,7 @@ document.addEventListener('click', event => {
         speech = browser.listen(command => void guarded(async () => {
           if (/^(wiederholen|vorlesen)$/.test(command)) browser.speak(graph.byId.get(id).instruction);
           else if (/^(erledigt|fertig)$/.test(command)) await completeTask(id);
-          else if (/^(weiter|nächster schritt)$/.test(command)) browseTask(1);
+          else if (/^(weiter|nächster schritt)$/.test(command)) continueCooking();
           else if (/^(eine minute mehr|timer plus eine minute)$/.test(command)) act({ type: 'ADJUST', id, seconds: 60 });
           else toast('Nicht erkannt. Nutze die Tasten oder einen angezeigten Befehl.');
         }), message => { speech = null; if (message) toast(message, true); }); toast('Mikrofon aktiv. Jetzt einen Befehl sprechen.'); break;

@@ -18,7 +18,8 @@ export function inspectBackup(backup) {
     if (!session || !object(session.tasks) || !object(session.timers) || !object(session.bindings) || !object(session.packing) || !object(session.legacyTimers) || !Array.isArray(session.events) || !object(current.checks) || typeof session.note !== 'string') throw new Error('Fortschritt oder Checklisten der Sicherung sind unvollständig.');
     for (const key of ['bought', 'pantry', 'ready', 'equipment']) if (!current.checks[key] || typeof current.checks[key] !== 'object') throw new Error('Eine Checkliste der Sicherung fehlt.');
     for (const timer of [...Object.values(session.timers), ...Object.values(session.legacyTimers || {})]) if (!validTimer(timer)) throw new Error('Ein Timer der Sicherung ist ungültig.');
-    for (const record of Object.values(session.tasks)) if (!record || !['running', 'elapsed', 'completed', 'skipped', 'pending'].includes(record.status)) throw new Error('Ein Schrittzustand der Sicherung ist ungültig.');
+    for (const record of Object.values(session.tasks)) if (!record || !['running', 'elapsed', 'completed', 'skipped', 'pending'].includes(record.status)
+      || record.waitingForTimer != null && typeof record.waitingForTimer !== 'boolean') throw new Error('Ein Schrittzustand der Sicherung ist ungültig.');
     for (const allocations of Object.values(session.bindings)) if (!Array.isArray(allocations) || allocations.some(a => {
       if (!a || typeof a.resourceId !== 'string' || !Number.isInteger(a.units) || a.units < 1) return true;
       const person = /^@cook\/([1-8])$/.exec(a.resourceId);

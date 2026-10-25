@@ -103,11 +103,14 @@ with sync_playwright() as p:
     initial = snapshot(page)['current']['session']
     timer_id = next(iter(initial['timers']))
     page.locator('[data-action="following-task"]').click()
-    assert snapshot(page)['current']['session']==initial
+    after_browsing = snapshot(page)['current']['session']
+    assert after_browsing['timers']==initial['timers']
+    assert after_browsing['tasks'][timer_id]['status']=='running'
+    assert {id:t['status'] for id,t in after_browsing['tasks'].items()}=={id:t['status'] for id,t in initial['tasks'].items()}
     page.locator('[data-action="previous-task"]').click()
-    assert snapshot(page)['current']['session']==initial
+    assert snapshot(page)['current']['session']==after_browsing
     page.locator('.cook-options > summary').click()
-    ok('Back and next only browse; starting a step does not start a timer until explicitly requested')
+    ok('Back and next retain steps and timer deadlines while releasing timed handwork for parallel cooking')
     page.locator('[data-action="adjust-timer"][data-seconds="60"]').click()
     page.wait_for_timeout(100)
     deadline = snapshot(page)['current']['session']['timers'][timer_id]['endsAt']
@@ -161,6 +164,69 @@ with sync_playwright() as p:
     assert page.evaluate('window.CHEF_PWNED===undefined')
     assert '<img' in page.locator('.recipe h2').first.inner_text()
     ok('Imported names render as text rather than executable HTML')
+
+    parallel_context=browser.new_context(viewport={'width':390,'height':844},timezone_id='Europe/Zurich',is_mobile=True,has_touch=True)
+    prep_page=parallel_context.new_page()
+    prep_page.on('pageerror',lambda error:results['page_errors'].append(str(error)))
+    goto(prep_page,'overview')
+    parallel_menu=timer_fixture()
+    for i,(name,seconds) in enumerate([('Kartoffeln',1200),('Reis',900)]):
+        parallel_menu['recipes'][i]['name']=name
+        parallel_menu['recipes'][i]['tasks'][0].update(mode='active',instruction=name+' garen',duration={'seconds':seconds,'scaling':'fixed'})
+    salad=json.loads(json.dumps(parallel_menu['recipes'][0]))
+    salad.update(id='salad',name='Salat',reservations=[])
+    salad['tasks']=[{'id':'chop','instruction':'Salat schneiden','phase':'prep','mode':'active','duration':None,'dependsOn':[],'uses':[]}]
+    parallel_menu['recipes'].append(salad)
+    parallel_menu['selection'].append({'recipeId':'salad','servings':2})
+    import_data(prep_page,parallel_menu)
+    prep_page.clock.set_fixed_time(datetime(2026,10,25,14,tzinfo=timezone.utc))
+    goto(prep_page,'cook')
+    assert prep_page.locator('.cook-instruction').inner_text()=='Kartoffeln garen'
+    prep_page.locator('[data-action="start-timer"]').click()
+    potatoes_deadline=snapshot(prep_page)['current']['session']['timers']['meal-a/wait']['endsAt']
+    prep_page.locator('.cook-primary[data-action="continue-cooking"]').click()
+    assert prep_page.locator('.cook-instruction').inner_text()=='Reis garen'
+    assert snapshot(prep_page)['current']['session']['tasks']['meal-a/wait']['status']=='running'
+    prep_page.locator('[data-action="start-timer"]').click()
+    prep_page.locator('.timer-chip').nth(1).wait_for()
+    assert prep_page.locator('.timer-chip').count()==2
+    assert prep_page.locator('[data-timer-id="meal-a/wait"] .timer-label').inner_text().startswith('Kartoffeln garen')
+    assert 'Reis' in prep_page.locator('[data-timer-id="meal-b/wait"]').inner_text()
+    assert prep_page.locator('[data-timer-id="meal-a/wait"] .countdown').inner_text()=='20:00'
+    assert prep_page.locator('[data-timer-id="meal-b/wait"] .countdown').inner_text()=='15:00'
+    for width,height in [(320,568),(390,844),(844,390),(1024,768)]:
+        prep_page.set_viewport_size({'width':width,'height':height})
+        geometry=prep_page.evaluate('''() => ({
+          cards:[...document.querySelectorAll('.timer-chip')].every(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight;}),
+          pageOverflow:document.documentElement.scrollHeight>innerHeight+1,
+          action:(()=>{const e=document.querySelector('.cook-primary'),r=e.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===e;})()
+        })''')
+        assert geometry['cards'] and geometry['action'] and not geometry['pageOverflow'],(width,height,geometry)
+    prep_page.set_viewport_size({'width':390,'height':844})
+    prep_page.screenshot(path=str(OUT/'parallel-cooking-timers.png'))
+    prep_page.locator('[data-action="pause-timer"]').click()
+    prep_page.locator('.cook-primary[data-action="continue-cooking"]').click()
+    assert prep_page.locator('.cook-instruction').inner_text()=='Salat schneiden'
+    prep_page.locator('[data-action="start-task"]').click()
+    prep_page.locator('[data-action="complete-task"]').click()
+    assert snapshot(prep_page)['current']['session']['tasks']['salad/chop']['status']=='completed'
+    prep_page.clock.set_fixed_time(datetime(2026,10,25,14,1,tzinfo=timezone.utc))
+    prep_page.wait_for_function('(selector)=>document.querySelector(selector).textContent==="19:00"',arg='[data-timer-id="meal-a/wait"] .countdown')
+    assert snapshot(prep_page)['current']['session']['timers']['meal-a/wait']['endsAt']==potatoes_deadline
+    assert prep_page.locator('[data-timer-id="meal-a/wait"] .countdown').inner_text()=='19:00'
+    assert prep_page.locator('[data-timer-id="meal-b/wait"] .countdown').inner_text()=='15:00'
+    prep_page.reload(wait_until='networkidle')
+    assert snapshot(prep_page)['current']['session']['tasks']['meal-a/wait']['waitingForTimer']
+    assert snapshot(prep_page)['current']['session']['timers']['meal-b/wait']['state']=='paused'
+    prep_page.locator('[data-timer-id="meal-a/wait"]').click()
+    prep_page.locator('[data-action="complete-task"]').click()
+    assert snapshot(prep_page)['current']['session']['tasks']['meal-a/wait']['status']=='completed'
+    prep_page.wait_for_function('document.querySelectorAll(".timer-chip").length===1')
+    assert prep_page.locator('.timer-chip').count()==1
+    assert snapshot(prep_page)['current']['session']['timers']['meal-b/wait']['state']=='paused'
+    ok('Potatoes and rice timers coexist; Continue finds independent handwork, completing it retains both clocks, pause and reload remain independent')
+    parallel_context.close()
+
     data = timer_fixture()
     import_data(page, data)
     goto(page, 'prep'); page.locator('[data-action="all-ready"]').click()
@@ -194,6 +260,8 @@ with sync_playwright() as p:
     assert page.locator('#alarmTitle').inner_text() != first_title
     page.locator('#ackTimer').click()
     page.locator('#alarmDialog').wait_for(state='hidden')
+    assert page.locator('.timer-chip.elapsed').count()==2
+    assert page.locator('.timer-chip .countdown').all_inner_texts()==['Prüfen','Prüfen']
     assert snapshot(page)['current']['session']['tasks']['meal-a/wait']['status'] == 'elapsed'
     assert page.locator('.timeline-step[data-state="completed"]').count()==0
     goto(page, 'finish')

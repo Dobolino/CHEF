@@ -4,6 +4,15 @@ const done = record => record?.status === 'completed';
 const busy = record => record && ['running', 'elapsed'].includes(record.status);
 const sameSettings = (a, b) => !a && !b || a && b && a.temperatureC === b.temperatureC && a.mode === b.mode;
 
+// Leaving a timed task releases only hands-on attention. Food, cookware and
+// prerequisites remain unfinished; raw-food cleaning keeps its attention lock.
+export function canWaitForTimer(graph, session, taskId) {
+  const task = graph.byId.get(taskId), record = session.tasks[taskId], timer = session.timers[taskId];
+  return task?.mode === 'active' && busy(record) && !record.waitingForTimer
+    && !!timer && !['cancelled'].includes(timer.state)
+    && !graph.holds.some(h => h.kind === 'attention' && h.fromTask === taskId && h.throughTask !== taskId);
+}
+
 export function allocationsFor(graph, taskId, locks, bindings = {}) {
   const acquired = [], temporary = [...locks];
   for (const hold of graph.holds.filter(h => h.fromTask === taskId)) {
@@ -37,6 +46,7 @@ export function runtimeLocks(graph, session) {
   for (const hold of graph.holds) {
     const first = session.tasks[hold.fromTask], last = session.tasks[hold.throughTask];
     if (first?.startedAt == null || done(last)) continue;
+    if (hold.kind === 'attention' && hold.fromTask === hold.throughTask && first.waitingForTimer) continue;
     for (const allocation of session.bindings[hold.id] || []) locks.push({ ...allocation, holdId: hold.id, ovenSettings: hold.ovenSettings || null });
   }
   return locks;
@@ -51,7 +61,7 @@ export function readiness(graph, session, taskId) {
   if (busy(record)) return { ready: false, reason: 'Bereits gestartet.' };
   const missing = task.dependsOn.filter(id => !done(session.tasks[id]));
   if (missing.length) return { ready: false, reason: `Wartet auf: ${missing.map(id => graph.byId.get(id).shortLabel).join(', ')}` };
-  if (task.mode === 'active' && graph.tasks.filter(t => t.mode === 'active' && busy(session.tasks[t.id])).length >= graph.kitchen.cooks) return { ready: false, reason: 'Zuerst die laufende Handarbeit bestätigen.' };
+  if (task.mode === 'active' && graph.tasks.filter(t => t.mode === 'active' && busy(session.tasks[t.id]) && !session.tasks[t.id].waitingForTimer).length >= graph.kitchen.cooks) return { ready: false, reason: 'Zuerst die laufende Handarbeit abschließen oder bei ihrem Timer „Weiterkochen“ wählen.' };
   const allocations = allocationsFor(graph, task.id, runtimeLocks(graph, session), session.bindings);
   if (!allocations) {
     const cleaning = graph.holds.some(h => h.kind === 'attention' && h.throughTask.endsWith('~clean') && done(session.tasks[h.fromTask]) && !done(session.tasks[h.throughTask]));
@@ -73,7 +83,8 @@ function simulate(graph, session, now, variant) {
   for (const task of graph.tasks.filter(t => busy(records[t.id]))) {
     const timer = session.timers[task.id];
     const end = Math.max(0, timer && timer.state !== 'cancelled' ? Math.ceil(timerRemainingMs(timer, now) / 1000) : task.durationSeconds);
-    started.add(task.id); running.push({ task, end }); if (task.mode === 'active') active++;
+    const usesAttention = task.mode === 'active' && !records[task.id].waitingForTimer;
+    started.add(task.id); running.push({ task, end, usesAttention }); if (usesAttention) active++;
     entries.push({ taskId: task.id, start: 0, end, resourceIds: [...new Set(locks.filter(l => {
       const hold = graph.holds.find(h => h.id === l.holdId); return hold && (hold.fromTask === task.id || !done(records[hold.throughTask]));
     }).map(l => l.resourceId))], resumed: true });
@@ -82,7 +93,7 @@ function simulate(graph, session, now, variant) {
   for (let guard = 0; completed.size < graph.tasks.length && guard < graph.tasks.length * 4 + 16; guard++) {
     for (let i = running.length - 1; i >= 0; i--) if (running[i].end <= time) {
       const task = running[i].task;
-      completed.add(task.id); if (task.mode === 'active') active--;
+      completed.add(task.id); if (running[i].usesAttention) active--;
       const released = new Set(graph.holds.filter(h => h.throughTask === task.id).map(h => h.id));
       for (const booking of reservations) if (released.has(booking.holdId) && booking.end == null) booking.end = time;
       locks = locks.filter(l => !released.has(l.holdId)); running.splice(i, 1);
@@ -110,7 +121,7 @@ function simulate(graph, session, now, variant) {
       locks.push(...allocations); started.add(task.id); if (task.mode === 'active') active++;
       reservations.push(...allocations.map(allocation => ({ ...allocation, start: time, end: null })));
       const end = time + task.durationSeconds;
-      running.push({ task, end });
+      running.push({ task, end, usesAttention: task.mode === 'active' });
       const resourceIds = [...new Set(locks.filter(l => graph.holds.some(h => h.id === l.holdId &&
         (h.fromTask === task.id || task.recipeIds.includes(h.recipeId)))).map(l => l.resourceId))];
       entries.push({ taskId: task.id, start: time, end, resourceIds }); progress = true;
