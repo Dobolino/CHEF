@@ -4,6 +4,7 @@ import { shoppingList, formatQuantity } from './data/units.js';
 import { compileGraph } from './planning/graph.js';
 import { plan, readiness, runtimeLocks } from './planning/scheduler.js';
 import { newSession, reduceSession, hasProgress, timerRows, isComplete } from './session/state.js';
+import { timerRemainingMs } from './session/timers.js';
 import { createStore, inspectBackup } from './session/store.js';
 import * as views from './ui/views.js';
 import * as browser from './platform/browser.js';
@@ -21,6 +22,8 @@ stickySizes.observe($('timerRail'), { box: 'border-box' });
 let store;
 try { store = createStore(localStorage); } catch { store = createStore({ getItem() { throw new Error('Browserspeicher ist nicht zugänglich.'); } }); }
 let graph = null, forecast = null, graphSignature = '', validation = { errors: [], blockers: [], warnings: [] }, planError = '', graphError = '';
+let timelineOrder = [];
+let timerTargetId = null;
 let selectedTaskId = null, pendingImport = null, toastTimeout, renderFrame = 0, alarmId = null, alarmLegacy = false;
 let alarmInterval = null, registration = null, lastForecastAt = 0, speech = null, pendingConfirm = null, lastRenderedRoute = null;
 const railNodes = new Map();
@@ -56,13 +59,18 @@ store.subscribe(scheduleRender);
 
 function prepare() {
   const current = store.state.current;
-  if (!current) { graph = forecast = null; graphSignature = ''; return; }
+  if (!current) { graph = forecast = null; graphSignature = ''; timelineOrder = []; return; }
   const signature = stableJSON(current.document);
   if (signature !== graphSignature) {
-    graphSignature = signature; graph = null; forecast = null; selectedTaskId = null; graphError = '';
+    graphSignature = signature; graph = null; forecast = null; selectedTaskId = null; graphError = ''; timelineOrder = [];
     validation = validateDocument(current.document);
     if (!validation.errors.length && !validation.blockers.length) {
       try { graph = compileGraph(current.document); } catch (error) { graphError = error.message; }
+      if (graph) {
+        // Keep completed and parallel steps in their original positions as the live forecast changes.
+        try { timelineOrder = plan(graph).entries.map(entry => entry.taskId); }
+        catch { timelineOrder = graph.tasks.map(task => task.id); }
+      }
     }
   }
   forecast = null; planError = graphError;
@@ -83,15 +91,16 @@ function render() {
   const focus = document.activeElement;
   const focusId = focus?.id;
   const focusAction = focus?.dataset.action, focusTask = focus?.dataset.id;
+  const previousTimelineTask = $('viewRoot').querySelector('.timeline-step[aria-current="step"]')?.dataset.id;
   const openDetails = lastRenderedRoute === page ? [...$('viewRoot').querySelectorAll('details[open]')].map(d => d.dataset.detailKey || [...$('viewRoot').querySelectorAll('details')].indexOf(d)) : [];
-  const scrollPositions = lastRenderedRoute === page ? [...$('viewRoot').querySelectorAll('[data-scroll-key]')].map(node => ({ key: node.dataset.scrollKey, top: node.scrollTop })) : [];
+  const scrollPositions = lastRenderedRoute === page ? [...$('viewRoot').querySelectorAll('[data-scroll-key]')].map(node => ({ key: node.dataset.scrollKey, top: node.scrollTop, left: node.scrollLeft })) : [];
   lastRenderedRoute = page;
   if (store.loadError) {
     $('viewRoot').innerHTML = `<div class="error"><h1>Gespeicherte Daten brauchen Aufmerksamkeit.</h1><p>${views.esc(store.loadError)}</p><p>Der gespeicherte Stand wurde nicht überschrieben. Sichere ihn vor einer Wiederherstellung.</p><div class="actions">${button('raw-backup', 'Gespeicherte Daten sichern')}${button('repair-storage', 'Wiederherstellung öffnen')}</div></div>`;
   } else if (page === 'archive') $('viewRoot').innerHTML = views.archiveView(store.state);
   else if (!current) $('viewRoot').innerHTML = views.emptyMenu();
   else if (page === 'prep') $('viewRoot').innerHTML = views.prepView(current, graph, forecast, validation);
-  else if (page === 'cook') $('viewRoot').innerHTML = views.cookView(current, graph, forecast, selectedTaskId, browser.voiceAvailable(), validation);
+  else if (page === 'cook') $('viewRoot').innerHTML = views.cookView(current, graph, forecast, selectedTaskId, browser.voiceAvailable(), validation, timelineOrder);
   else if (page === 'plan') $('viewRoot').innerHTML = views.planView(current, graph, forecast, planError);
   else if (page === 'finish') $('viewRoot').innerHTML = views.finishView(current, graph);
   else $('viewRoot').innerHTML = views.menuView(current, graph, forecast, validation);
@@ -103,16 +112,18 @@ function render() {
     const node = typeof key === 'number' ? details[key] : details.find(d => d.dataset.detailKey === key);
     if (node) node.open = true;
   }
-  for (const { key, top } of scrollPositions) {
+  for (const { key, top, left } of scrollPositions) {
     const node = [...$('viewRoot').querySelectorAll('[data-scroll-key]')].find(node => node.dataset.scrollKey === key);
-    if (node) node.scrollTop = top;
+    if (node) { node.scrollTop = top; node.scrollLeft = left; }
   }
+  if (page === 'cook' && previousTimelineTask !== selectedTaskId) $('viewRoot').querySelector('.timeline-step[aria-current="step"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
   if ($('cookStepsDialog').open) renderCookSteps();
   for (const a of document.querySelectorAll('.navigation a')) a.setAttribute('aria-current', a.hash === `#${page === 'plan' ? 'cook' : page === 'finish' ? 'cook' : page}` ? 'page' : 'false');
   document.title = `CHEF · ${({ overview: 'Wochenmenü', prep: 'Vorbereiten', cook: 'Kochen', archive: 'Archiv', plan: 'Ablaufplan', finish: 'Portionieren' })[page]}`;
   // Preserve explicit controls after state changes, never steal focus from a dialog.
   if (!$('confirmDialog').open && !$('alarmDialog').open && focus?.closest('#viewRoot')) {
-    let target = focusId ? document.getElementById(focusId) : null;
+    let target = focus?.classList.contains('timeline-step') && previousTimelineTask !== selectedTaskId
+      ? $('viewRoot').querySelector('.timeline-step[aria-current="step"]') : focusId ? document.getElementById(focusId) : null;
     if (!target && focusAction) target = [...$('viewRoot').querySelectorAll('[data-action]')].find(b => b.dataset.action === focusAction && b.dataset.id === focusTask);
     target?.focus({ preventScroll: true });
   }
@@ -174,7 +185,8 @@ function renderTimers() {
     node.firstElementChild.firstElementChild.textContent = row.label;
     node.querySelector('small').textContent = `${row.recipeNames.join(' + ')}${row.legacy ? '' : ` · ${devicesForTask(row.id) || (row.mode === 'passive' ? 'Wartezeit' : 'Handarbeit')}`}`;
     node.classList.toggle('elapsed', row.state === 'elapsed');
-    node.setAttribute('aria-label', `${row.label}. ${row.state === 'elapsed' ? 'Abgelaufen' : 'Timer läuft'}. ${row.legacy ? 'Zum Quittieren öffnen' : 'Schritt öffnen'}.`);
+    node.classList.toggle('paused', row.state === 'paused');
+    node.setAttribute('aria-label', `${row.label}. ${row.state === 'elapsed' ? 'Abgelaufen' : row.state === 'paused' ? 'Timer pausiert' : 'Timer läuft'}. ${row.legacy ? 'Zum Quittieren öffnen' : 'Schritt öffnen'}.`);
   }
   $('timerRail').hidden = rows.length === 0; updateCountdowns();
 }
@@ -183,11 +195,11 @@ function updateCountdowns() {
   for (const [key, node] of railNodes) {
     const legacy = key.startsWith('legacy:'), id = legacy ? key.slice(7) : key;
     const timer = legacy ? session.legacyTimers[id] : session.timers[id];
-    if (timer) node.querySelector('.countdown').textContent = timer.state === 'elapsed' ? 'Prüfen' : views.countdown((timer.endsAt - Date.now()) / 1000);
+    if (timer) node.querySelector('.countdown').textContent = timer.state === 'elapsed' ? 'Prüfen' : views.countdown(timerRemainingMs(timer) / 1000);
   }
   for (const output of document.querySelectorAll('[data-main-timer]')) {
     const timer = session.timers[output.dataset.mainTimer];
-    if (timer) output.textContent = timer.state === 'elapsed' ? 'Zeit vorbei' : views.countdown((timer.endsAt - Date.now()) / 1000);
+    if (timer) output.textContent = timer.state === 'elapsed' ? 'Zeit vorbei' : views.countdown(timerRemainingMs(timer) / 1000);
   }
 }
 function elapsedRows() { return store.state.current ? timerRows(store.state.current.session, graph).filter(t => t.state === 'elapsed') : []; }
@@ -220,7 +232,36 @@ function updateWake() {
 }
 async function startTask(id) {
   if (!graph) throw new Error('Zuerst fehlende Angaben ergänzen.');
-  browser.unlockAudio(); selectedTaskId = id; act({ type: 'START', id });
+  selectedTaskId = id; act({ type: 'START', id, startTimer: false });
+}
+function startTimer(id, seconds) {
+  if (!Number.isInteger(seconds) || seconds < 1 || seconds > 86400) throw new Error('Eine Timerdauer zwischen einer Sekunde und 24 Stunden wählen.');
+  let session = store.state.current.session;
+  if (!['running', 'elapsed'].includes(session.tasks[id]?.status)) session = reduceSession(graph, session, { type: 'START', id, startTimer: false });
+  session = reduceSession(graph, session, { type: 'RESTART_TIMER', id, seconds });
+  store.commit(next => { next.current.session = session; });
+  browser.unlockAudio(); selectedTaskId = id;
+}
+function editTimer(id) {
+  const task = graph?.byId.get(id); if (!task) throw new Error('Schritt fehlt.');
+  timerTargetId = id;
+  const timer = store.state.current.session.timers[id];
+  const seconds = timer?.durationSeconds || (task.untimed ? 0 : task.durationSeconds);
+  $('timerMinutes').value = Math.floor(seconds / 60); $('timerSeconds').value = seconds % 60;
+  $('timerDialogNote').textContent = timer ? 'Die neue Dauer startet diesen Timer neu. Abbrechen behält den bisherigen Timer.' : 'Du bestimmst die Dauer. Der Timer startet erst mit deiner Bestätigung.';
+  $('timerDialog').showModal(); $('timerMinutes').focus(); $('timerMinutes').select();
+}
+$('timerForm').addEventListener('submit', event => {
+  event.preventDefault(); void guarded(() => {
+    const seconds = Number($('timerMinutes').value) * 60 + Number($('timerSeconds').value);
+    startTimer(timerTargetId, seconds); $('timerDialog').close(); syncAlarm();
+  });
+});
+function browseTask(delta) {
+  if (!graph) return;
+  const index = timelineOrder.indexOf(currentTask()?.id);
+  selectedTaskId = timelineOrder[Math.max(0, Math.min(timelineOrder.length - 1, index + delta))];
+  navigate('cook');
 }
 function markAllReady() {
   store.commit(next => {
@@ -239,8 +280,8 @@ function nextReady() {
 async function completeTask(id) {
   const current = store.state.current, task = graph.byId.get(id), timer = current.session.timers[id];
   let confirmEarly = false;
-  if (task.mode === 'passive' && timer?.endsAt > Date.now()) {
-    confirmEarly = await confirm('Timer läuft noch', 'Nur vorzeitig abschließen, wenn der Garzustand oder die Voraussetzung tatsächlich geprüft und erfüllt ist.', 'Geprüft & erledigt');
+  if (task.mode === 'passive' && timerRemainingMs(timer) > 0) {
+    confirmEarly = await confirm(timer.state === 'paused' ? 'Timer ist pausiert' : 'Timer läuft noch', 'Die Restzeit ist noch offen. Nur vorzeitig abschließen, wenn der Garzustand oder die Voraussetzung tatsächlich geprüft und erfüllt ist.', 'Geprüft & erledigt');
     if (!confirmEarly) return;
   }
   act({ type: 'COMPLETE', id, confirmEarly }); nextReady();
@@ -324,6 +365,16 @@ document.addEventListener('click', event => {
       }
       case 'all-ready': markAllReady(); toast('Zutaten und Geräte als bereit bestätigt.'); break;
       case 'start-task': await startTask(id); break;
+      case 'start-timer': {
+        const task = graph.byId.get(id);
+        if (task.untimed) editTimer(id); else startTimer(id, task.durationSeconds);
+        break;
+      }
+      case 'timer-settings': editTimer(id); break;
+      case 'pause-timer': act({ type: 'PAUSE_TIMER', id }); break;
+      case 'resume-timer': browser.unlockAudio(); act({ type: 'RESUME_TIMER', id }); break;
+      case 'previous-task': browseTask(-1); break;
+      case 'following-task': browseTask(1); break;
       case 'complete-task': await completeTask(id); break;
       case 'next-ready': nextReady(); break;
       case 'cook-steps': renderCookSteps(); $('cookStepsDialog').showModal(); break;
@@ -337,7 +388,7 @@ document.addEventListener('click', event => {
         speech = browser.listen(command => void guarded(async () => {
           if (/^(wiederholen|vorlesen)$/.test(command)) browser.speak(graph.byId.get(id).instruction);
           else if (/^(erledigt|fertig)$/.test(command)) await completeTask(id);
-          else if (/^(weiter|nächster schritt)$/.test(command)) nextReady();
+          else if (/^(weiter|nächster schritt)$/.test(command)) browseTask(1);
           else if (/^(eine minute mehr|timer plus eine minute)$/.test(command)) act({ type: 'ADJUST', id, seconds: 60 });
           else toast('Nicht erkannt. Nutze die Tasten oder einen angezeigten Befehl.');
         }), message => { speech = null; if (message) toast(message, true); }); toast('Mikrofon aktiv. Jetzt einen Befehl sprechen.'); break;
@@ -397,17 +448,15 @@ document.addEventListener('change', event => {
 document.addEventListener('keydown', event => {
   if (route() !== 'cook' || event.altKey || event.ctrlKey || event.metaKey || event.target.closest('input,textarea,select,dialog')) return;
   if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || !graph) return;
-  event.preventDefault(); const list = forecast?.entries.map(e => e.taskId) || graph.tasks.map(t => t.id), index = list.indexOf(currentTask()?.id);
-  selectedTaskId = list[Math.max(0, Math.min(list.length - 1, index + (event.key === 'ArrowRight' ? 1 : -1)))]; render();
+  event.preventDefault(); browseTask(event.key === 'ArrowRight' ? 1 : -1);
 });
 let touch = null;
-$('viewRoot').addEventListener('touchstart', event => { if (event.touches.length === 1 && route() === 'cook' && !event.target.closest('button,input,textarea,select,a,summary')) touch = { x: event.touches[0].clientX, y: event.touches[0].clientY }; else touch = null; }, { passive: true });
+$('viewRoot').addEventListener('touchstart', event => { if (event.touches.length === 1 && route() === 'cook' && !event.target.closest('button,input,textarea,select,a,summary,.cook-route')) touch = { x: event.touches[0].clientX, y: event.touches[0].clientY }; else touch = null; }, { passive: true });
 $('viewRoot').addEventListener('touchend', event => {
   if (!touch || !graph || document.querySelector('dialog[open]')) return;
   const dx = event.changedTouches[0].clientX - touch.x, dy = event.changedTouches[0].clientY - touch.y; touch = null;
   if (Math.abs(dx) < 90 || Math.abs(dx) < Math.abs(dy) * 2) return;
-  const list = forecast?.entries.map(e => e.taskId) || graph.tasks.map(t => t.id), index = list.indexOf(currentTask()?.id);
-  selectedTaskId = list[Math.max(0, Math.min(list.length - 1, index + (dx < 0 ? 1 : -1)))]; render();
+  browseTask(dx < 0 ? 1 : -1);
 }, { passive: true });
 window.addEventListener('hashchange', () => { render(); $('main').focus({ preventScroll: true }); });
 window.addEventListener('online', updateConnection); window.addEventListener('offline', updateConnection);
@@ -422,7 +471,7 @@ function tick() {
   updateCountdowns(); syncAlarm();
   if (graph && Date.now() - lastForecastAt > 15000) {
     try { forecast = plan(graph, { session: store.state.current.session }); lastForecastAt = Date.now();
-      for (const span of document.querySelectorAll('[data-live-eta]')) span.textContent = `≈ ${views.duration(forecast.totalSeconds)} geschätzt übrig`;
+      for (const span of document.querySelectorAll('[data-live-eta]')) span.textContent = views.remainingTimeText(forecast, store.state.current.session);
     } catch { /* A skipped prerequisite is explained in the full view. */ }
   }
 }

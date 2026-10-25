@@ -1,3 +1,5 @@
+import { timerRemainingMs } from '../session/timers.js';
+
 const done = record => record?.status === 'completed';
 const busy = record => record && ['running', 'elapsed'].includes(record.status);
 const sameSettings = (a, b) => !a && !b || a && b && a.temperatureC === b.temperatureC && a.mode === b.mode;
@@ -70,7 +72,7 @@ function simulate(graph, session, now, variant) {
   const bindings = session?.bindings || {};
   for (const task of graph.tasks.filter(t => busy(records[t.id]))) {
     const timer = session.timers[task.id];
-    const end = Math.max(0, timer && timer.state !== 'cancelled' ? Math.ceil((timer.endsAt - now) / 1000) : task.durationSeconds);
+    const end = Math.max(0, timer && timer.state !== 'cancelled' ? Math.ceil(timerRemainingMs(timer, now) / 1000) : task.durationSeconds);
     started.add(task.id); running.push({ task, end }); if (task.mode === 'active') active++;
     entries.push({ taskId: task.id, start: 0, end, resourceIds: [...new Set(locks.filter(l => {
       const hold = graph.holds.find(h => h.id === l.holdId); return hold && (hold.fromTask === task.id || !done(records[hold.throughTask]));

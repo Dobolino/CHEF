@@ -89,6 +89,58 @@ body[data-cooking="focus"] #viewRoot > .warning {
 .cook-progress { flex: 1; min-width: 0; }
 .cook-progress strong { display: block; font-size: 13px; }
 .cook-progress > span { display: block; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cook-overview { flex: none; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cook-route { min-width: 0; }
+.cook-timeline {
+  display: flex;
+  gap: 2px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scroll-padding-inline: 8px;
+}
+.cook-timeline > li { flex: none; }
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 5px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+.timeline-step:hover { background: var(--raised); }
+.timeline-step[aria-current="step"] { border-color: var(--text); background: var(--raised); }
+.timeline-step:focus-visible { outline-offset: -3px; }
+.timeline-dash { display: block; flex: none; width: 100%; height: 7px; border-radius: 4px; background: var(--step-fill); }
+.timeline-mark { color: var(--muted); font-size: 10px; line-height: 1; min-height: 10px; }
+.timeline-mark svg { display: block; width: 10px; height: 10px; fill: currentColor; }
+.timeline-step[data-state="pending"] .timeline-dash { opacity: .22; }
+.timeline-step[data-state="skipped"] .timeline-dash { opacity: .16; }
+.timeline-step[data-state="paused"] .timeline-dash { opacity: .65; }
+.timeline-step[data-state="paused"] .timeline-mark { color: var(--yellow); }
+.timeline-step[data-state="completed"] .timeline-mark,
+.timeline-step[data-state="running"] .timeline-mark { color: var(--step-color); }
+.timeline-step[data-state="elapsed"] { border-color: var(--yellow); }
+.timeline-step[data-state="elapsed"] .timeline-mark { color: var(--yellow); font-weight: 800; }
+.timeline-step[data-pulsing="true"] .timeline-dash { animation: timeline-pulse 2s ease-in-out infinite; }
+.timeline-recipes { display: flex; gap: 14px; min-height: 18px; padding: 2px 6px 0; overflow-x: auto; scrollbar-width: none; }
+.timeline-recipe { display: flex; align-items: center; gap: 5px; flex: none; max-width: 190px; min-width: 0; color: var(--muted); font-size: 10px; }
+.timeline-recipe > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timeline-recipe-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+@keyframes timeline-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) {
+  .timeline-step[data-pulsing="true"] .timeline-dash { animation: none; }
+}
 body[data-cooking="focus"] .cook-focus {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -109,6 +161,12 @@ body[data-cooking="focus"] .cook-instruction { font-size: clamp(26px, 3.5vw, 44p
 .cook-action-bar .timer-controls { margin: 0; flex-wrap: nowrap; gap: 8px; }
 .cook-action-bar .timer-controls button { min-width: 44px; min-height: 44px; padding: 8px; font-size: 13px; white-space: nowrap; }
 .cook-action-bar .big-timer { min-width: 0; font-size: 38px; line-height: 1.2; }
+.cook-step-actions { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; }
+.cook-nav { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 44px; min-height: 64px; padding: 4px; font-size: 22px; }
+.cook-nav small { font-size: 10px; line-height: 1.1; }
+.cook-step-actions .cook-primary { min-width: 0; }
+.timer-chip.paused { border-style: dashed; }
+.timer-chip.paused .countdown::before { content: 'Ⅱ '; font-size: 14px; color: var(--yellow); }
 body[data-cooking="focus"] .cook-primary { position: static; min-height: 64px; margin: 0; width: 100%; box-shadow: none; }
 .cook-secondary { min-height: 44px; }
 .cook-manual { color: var(--muted); font-size: 12px; }
@@ -131,8 +189,15 @@ body[data-cooking="focus"] .cook-primary { position: static; min-height: 64px; m
   .cook-action-bar { padding: 10px 14px 12px; gap: 8px; }
   .cook-action-bar .big-timer { font-size: 32px; }
   body[data-cooking="focus"] .cook-instruction { font-size: 26px; }
+  body[data-cooking="focus"] .cook-step-actions .cook-primary { font-size: 16px; padding: 8px; }
 }
 @media (min-width: 650px) and (max-height: 500px) {
+  .cook-overview { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+  .cook-overview .cook-toolbar { grid-area: 1 / 2; }
+  .cook-overview .cook-progress { display: none; }
+  .cook-route { grid-area: 1 / 1; }
+  .timeline-recipes { display: none; }
+  .cook-timeline { height: 44px; scrollbar-width: none; }
   body[data-cooking="focus"] .cook-focus { grid-template-columns: minmax(0, 1fr) 240px; grid-template-rows: auto minmax(0, 1fr); }
   .cook-focus-head { grid-area: 1 / 1; padding-block: 8px; }
   .cook-step-body { grid-area: 2 / 1; padding: 12px 16px; }
@@ -140,6 +205,8 @@ body[data-cooking="focus"] .cook-primary { position: static; min-height: 64px; m
   .cook-action-bar .big-timer { font-size: 28px; }
   .cook-action-bar .timer-controls button { font-size: 11px; }
   body[data-cooking="focus"] .cook-primary { min-height: 56px; font-size: 15px; padding: 10px; }
+  body[data-cooking="focus"] .cook-step-actions .cook-primary { font-size: 14px; padding: 8px; }
+  .cook-nav { min-height: 56px; }
   .cook-secondary { padding: 8px; font-size: 12px; }
   body[data-cooking="focus"] .cook-instruction { font-size: 24px; }
 }

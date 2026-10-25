@@ -1,4 +1,5 @@
 import { readiness } from '../planning/scheduler.js';
+import { timerRemainingMs } from './timers.js';
 
 export function newSession() {
   return { id: globalThis.crypto.randomUUID(), startedAt: null, cookedAt: null, tasks: {}, timers: {}, bindings: {},
@@ -22,7 +23,7 @@ export function reduceSession(graph, current, action, now = Date.now()) {
   }
   if (action.type === 'ACK_LEGACY') {
     const t = session.legacyTimers[action.id]; if (!t) throw new Error('Timer fehlt.');
-    t.state = 'acknowledged'; log(action.type); return session;
+    t.state = 'acknowledged'; t.endsAt ??= now; delete t.remainingMs; log(action.type); return session;
   }
   if (!task && !['NOTE', 'PACKING'].includes(action.type)) throw new Error('Aufgabe nicht gefunden.');
   switch (action.type) {
@@ -35,14 +36,14 @@ export function reduceSession(graph, current, action, now = Date.now()) {
       }
       session.startedAt ??= now;
       session.tasks[task.id] = { status: 'running', startedAt: now, completedAt: null };
-      if (!task.untimed) session.timers[task.id] = { endsAt: now + task.durationSeconds * 1000, durationSeconds: task.durationSeconds, state: 'running' };
+      if (!task.untimed && action.startTimer !== false) session.timers[task.id] = { endsAt: now + task.durationSeconds * 1000, durationSeconds: task.durationSeconds, state: 'running' };
       break;
     }
     case 'COMPLETE':
       if (!record || !['running', 'elapsed'].includes(record.status)) throw new Error('Den Schritt zuerst starten.');
-      if (task.mode === 'passive' && timer?.endsAt > now && !action.confirmEarly) throw new Error('Der Timer läuft noch. Vorzeitigen Abschluss ausdrücklich bestätigen.');
+      if (task.mode === 'passive' && timerRemainingMs(timer, now) > 0 && !action.confirmEarly) throw new Error('Der Timer ist noch nicht beendet. Vorzeitigen Abschluss ausdrücklich bestätigen.');
       record.status = 'completed'; record.completedAt = now;
-      if (timer) timer.state = 'acknowledged';
+      if (timer) { timer.state = 'acknowledged'; timer.endsAt ??= now; delete timer.remainingMs; }
       if (isComplete(graph, session)) session.cookedAt = now;
       break;
     case 'SKIP':
@@ -58,9 +59,20 @@ export function reduceSession(graph, current, action, now = Date.now()) {
     case 'ADJUST':
       if (!timer || record?.status === 'completed') throw new Error('Kein laufender Schritt-Timer.');
       if (!Number.isFinite(action.seconds) || Math.abs(action.seconds) > 86400) throw new Error('Ungültige Timeränderung.');
-      timer.endsAt = Math.max(now + 1000, timer.endsAt + action.seconds * 1000);
       timer.durationSeconds = Math.max(1, timer.durationSeconds + action.seconds);
-      timer.state = 'running'; record.status = 'running'; break;
+      if (timer.state === 'paused') timer.remainingMs = Math.max(1000, timer.remainingMs + action.seconds * 1000);
+      else { timer.endsAt = Math.max(now + 1000, timer.endsAt + action.seconds * 1000); timer.state = 'running'; }
+      record.status = 'running'; break;
+    case 'PAUSE_TIMER': {
+      if (!timer || timer.state !== 'running' || !record || record.status !== 'running') throw new Error('Kein laufender Timer zum Pausieren.');
+      const remainingMs = timerRemainingMs(timer, now);
+      if (remainingMs === 0) { timer.state = 'elapsed'; record.status = 'elapsed'; }
+      else { timer.state = 'paused'; timer.remainingMs = remainingMs; timer.endsAt = null; }
+      break;
+    }
+    case 'RESUME_TIMER':
+      if (!timer || timer.state !== 'paused' || !record || record.status !== 'running') throw new Error('Kein pausierter Timer zum Fortsetzen.');
+      timer.endsAt = now + timer.remainingMs; timer.state = 'running'; delete timer.remainingMs; break;
     case 'RESTART_TIMER':
       if (!record || !['running', 'elapsed'].includes(record.status)) throw new Error('Kein laufender Schritt.');
       if (!Number.isInteger(action.seconds) || action.seconds < 1 || action.seconds > 86400) throw new Error('Timerdauer muss zwischen einer Sekunde und 24 Stunden liegen.');

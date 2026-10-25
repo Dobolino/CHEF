@@ -4,6 +4,7 @@ import { compileGraph } from '../src/planning/graph.js';
 import { readiness, plan, runtimeLocks } from '../src/planning/scheduler.js';
 import { newSession, reduceSession, isComplete, timerRows } from '../src/session/state.js';
 import { createStore, STORAGE_KEY } from '../src/session/store.js';
+import { timerRemainingMs } from '../src/session/timers.js';
 import { packingPlan } from '../src/ui/views.js';
 import { menu, recipe, task, hold, memoryStorage } from './helpers.js';
 
@@ -11,6 +12,52 @@ function fixture() {
   const doc = menu([recipe('a', [task('start', 2), task('wait', 20, { mode: 'passive', deps: ['start'] }), task('pack', 1, { deps: ['wait'] })], [hold('pot', 'pot', 'start', 'pack')])]);
   return { doc, graph: compileGraph(doc) };
 }
+test('manual timer start, pause and reload preserve remaining time, resources and recipe data', () => {
+  const doc = menu([recipe('a', [task('work', 60)]), recipe('b', [task('other', 10)])]);
+  const graph = compileGraph(doc), storage = memoryStorage(), store = createStore(storage); store.activate(doc);
+  let s = reduceSession(graph, store.state.current.session, { type: 'START', id: 'a/work', startTimer: false }, 1000);
+  assert.equal(s.timers['a/work'], undefined);
+  s = reduceSession(graph, s, { type: 'RESTART_TIMER', id: 'a/work', seconds: 60 }, 1000);
+  s = reduceSession(graph, s, { type: 'PAUSE_TIMER', id: 'a/work' }, 16000);
+  store.commit(next => { next.current.session = s; });
+  const reloaded = createStore(storage); assert.equal(reloaded.loadError, null);
+  s = reloaded.state.current.session;
+  assert.equal(s.timers['a/work'].state, 'paused'); assert.equal(s.timers['a/work'].endsAt, null);
+  assert.equal(timerRemainingMs(s.timers['a/work'], 3600000), 45000);
+  assert.equal(reduceSession(graph, s, { type: 'TICK' }, 3600000), s);
+  assert.equal(readiness(graph, s, 'b/other').ready, false);
+  assert.equal(plan(graph, { session: s, now: 3600000 }).entries.find(e => e.taskId === 'a/work').end, 45);
+  s = reduceSession(graph, s, { type: 'RESUME_TIMER', id: 'a/work' }, 3600000);
+  assert.equal(s.timers['a/work'].endsAt, 3645000);
+  s = reduceSession(graph, s, { type: 'TICK' }, 3645000);
+  assert.equal(s.timers['a/work'].state, 'elapsed'); assert.equal(s.tasks['a/work'].status, 'elapsed');
+  assert.equal(store.state.current.document.recipes[0].tasks[0].duration.seconds, 60);
+});
+test('timer adjustments stay paused and an unfinished paused cook still requires completion confirmation', () => {
+  const { doc, graph } = fixture(); let s = newSession();
+  s = reduceSession(graph, s, { type: 'START', id: 'a/start', startTimer: false }, 0);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/start' }, 1000);
+  s = reduceSession(graph, s, { type: 'START', id: 'a/wait' }, 1000);
+  s = reduceSession(graph, s, { type: 'PAUSE_TIMER', id: 'a/wait' }, 6000);
+  s = reduceSession(graph, s, { type: 'ADJUST', id: 'a/wait', seconds: 60 }, 1000000);
+  assert.equal(s.timers['a/wait'].state, 'paused'); assert.equal(s.timers['a/wait'].remainingMs, 75000);
+  assert.throws(() => reduceSession(graph, s, { type: 'COMPLETE', id: 'a/wait' }, 2000000), /bestätigen/);
+  s = reduceSession(graph, s, { type: 'COMPLETE', id: 'a/wait', confirmEarly: true }, 2000000);
+  const storage = memoryStorage(), store = createStore(storage); store.activate(doc); store.commit(next => { next.current.session = s; });
+  assert.equal(createStore(storage).loadError, null);
+  assert.equal(s.timers['a/wait'].state, 'acknowledged');
+});
+test('invalid paused backup leaves the current data intact; pausing an expired timer does not suppress its alarm', () => {
+  const { doc, graph } = fixture(), storage = memoryStorage(), store = createStore(storage); store.activate(doc);
+  let s = reduceSession(graph, newSession(), { type: 'START', id: 'a/start' }, 0);
+  s = reduceSession(graph, s, { type: 'PAUSE_TIMER', id: 'a/start' }, 2000);
+  assert.equal(s.timers['a/start'].state, 'elapsed');
+  assert.throws(() => reduceSession(graph, s, { type: 'RESUME_TIMER', id: 'a/start' }, 2001));
+  const before = storage.getItem(STORAGE_KEY), bad = structuredClone({ kind: 'chef-backup', version: 2, state: store.state });
+  bad.state.current.session.timers.bad = { state: 'paused', endsAt: null, durationSeconds: 60, remainingMs: -1 };
+  assert.throws(() => store.restoreBackup(bad), /Timer/);
+  assert.equal(storage.getItem(STORAGE_KEY), before);
+});
 test('untimed handwork survives reload without an alarm and retains resources until completion', () => {
   const a = recipe('a', [task('chop', 1, { duration: null }), task('wait', 60, { mode: 'passive', deps: ['chop'] })], [hold('board', 'board', 'chop', 'chop')]);
   const doc = menu([a, recipe('b', [task('other', 1)])]);

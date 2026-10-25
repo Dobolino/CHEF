@@ -94,11 +94,20 @@ with sync_playwright() as p:
     assert not snapshot(page)['current']['checks']['ready']
     assert not snapshot(page)['current']['checks']['equipment']
     page.locator('[data-action="start-task"]').click()
+    page.locator('[data-action="complete-task"]').wait_for()
+    assert not snapshot(page)['current']['session']['timers']
+    page.locator('[data-action="start-timer"]').click()
     page.locator('.timer-chip').wait_for()
     assert not page.locator('#confirmDialog').is_visible()
     assert not snapshot(page)['current']['checks']['ready']
     initial = snapshot(page)['current']['session']
     timer_id = next(iter(initial['timers']))
+    page.locator('[data-action="following-task"]').click()
+    assert snapshot(page)['current']['session']==initial
+    page.locator('[data-action="previous-task"]').click()
+    assert snapshot(page)['current']['session']==initial
+    page.locator('.cook-options > summary').click()
+    ok('Back and next only browse; starting a step does not start a timer until explicitly requested')
     page.locator('[data-action="adjust-timer"][data-seconds="60"]').click()
     page.wait_for_timeout(100)
     deadline = snapshot(page)['current']['session']['timers'][timer_id]['endsAt']
@@ -107,6 +116,27 @@ with sync_playwright() as p:
     page.wait_for_timeout(1200)
     assert page.evaluate('document.activeElement.classList.contains("timer-chip")')
     ok('Timer extension preserves deadline arithmetic; timer rail retains keyboard focus')
+    assert page.locator('.timeline-step').count()>30
+    assert page.locator('.timeline-step[style*="linear-gradient"]').count()>=1
+    active=page.locator('.timeline-step[data-pulsing="true"] .timeline-dash')
+    assert active.count()==1
+    assert active.evaluate('(e)=>getComputedStyle(e).animationName')=='timeline-pulse'
+    page.emulate_media(reduced_motion='reduce')
+    assert active.evaluate('(e)=>getComputedStyle(e).animationName')=='none'
+    page.emulate_media(reduced_motion='no-preference')
+    sequence=page.locator('.timeline-step').evaluate_all('(nodes)=>nodes.map(e=>e.dataset.id)')
+    page.locator('.cook-timeline').evaluate('(e)=>e.scrollLeft=120')
+    scroll_left=page.locator('.cook-timeline').evaluate('(e)=>e.scrollLeft')
+    page.locator('[data-action="adjust-timer"][data-seconds="-60"]').click()
+    page.wait_for_timeout(100)
+    assert abs(page.locator('.cook-timeline').evaluate('(e)=>e.scrollLeft')-scroll_left)<2
+    page.locator('[data-action="adjust-timer"][data-seconds="60"]').click()
+    page.locator('.timeline-step').last.click()
+    assert page.locator('.timeline-step').last.get_attribute('aria-current')=='step'
+    page.locator('[data-action="next-ready"]').click()
+    assert snapshot(page)['current']['session']['timers'][timer_id]['endsAt']==deadline
+    assert page.locator('.timeline-step').evaluate_all('(nodes)=>nodes.map(e=>e.dataset.id)')==sequence
+    ok('Colored timeline opens steps, combines recipe colors, preserves horizontal position and honors reduced motion')
     page.goto(BASE+'/kochmodus.html#mise', wait_until='networkidle')
     assert snapshot(page)['current']['session']['timers'][timer_id]['endsAt'] == deadline
     assert not snapshot(page)['current']['checks']['ready']
@@ -136,20 +166,26 @@ with sync_playwright() as p:
     goto(page, 'prep'); page.locator('[data-action="all-ready"]').click()
     page.clock.install(time=datetime(2026,10,24,12,tzinfo=timezone.utc))
     goto(page, 'cook')
+    timeline_order=page.locator('.timeline-step').evaluate_all('(nodes)=>nodes.map(e=>e.dataset.id)')
+    assert page.locator('.timeline-step[data-state="pending"]').count()==4
+    assert page.locator('.timeline-step[data-id="meal-a/wait"]').evaluate('(e)=>getComputedStyle(e).getPropertyValue("--step-fill")')!=page.locator('.timeline-step[data-id="meal-b/wait"]').evaluate('(e)=>getComputedStyle(e).getPropertyValue("--step-fill")')
     page.locator('[data-action="cook-steps"]').click()
     page.locator('#cookStepsContent [data-action="select-task"][data-id="meal-a/wait"]').click()
     assert not page.locator('#cookStepsDialog').is_visible()
-    page.locator('[data-action="start-task"]').click()
+    page.locator('[data-action="start-timer"]').click()
     page.locator('[data-action="cook-steps"]').click()
     page.locator('#cookStepsContent [data-action="select-task"][data-id="meal-b/wait"]').click()
-    page.locator('[data-action="start-task"]').click()
+    page.locator('[data-action="start-timer"]').click()
     page.locator('.timer-chip').nth(1).wait_for()
     assert page.locator('.timer-chip').count() == 2
+    assert page.locator('.timeline-step[data-pulsing="true"]').count()==2
     assert page.url.endswith('#cook')
     page.locator('[data-action="cook-steps"]').click()
     page.clock.fast_forward(61000)
     page.locator('#alarmDialog').wait_for()
     assert not page.locator('#cookStepsDialog').is_visible()
+    assert page.locator('.timeline-step[data-state="elapsed"]').count()==2
+    assert page.locator('.timeline-step[data-pulsing="true"]').count()==0
     first_title = page.locator('#alarmTitle').inner_text()
     page.locator('#ackTimer').click()
     page.wait_for_function("Object.values(JSON.parse(localStorage.getItem('chef.workspace.v2')).current.session.timers).filter(t=>t.state==='elapsed').length===1")
@@ -159,6 +195,7 @@ with sync_playwright() as p:
     page.locator('#ackTimer').click()
     page.locator('#alarmDialog').wait_for(state='hidden')
     assert snapshot(page)['current']['session']['tasks']['meal-a/wait']['status'] == 'elapsed'
+    assert page.locator('.timeline-step[data-state="completed"]').count()==0
     goto(page, 'finish')
     assert page.get_by_role('heading',name='Es sind noch Schritte offen.').is_visible()
     ok('Two simultaneous alarms are acknowledged individually; elapsed timers do not finish the meal')
@@ -166,6 +203,10 @@ with sync_playwright() as p:
         goto(page, 'plan')
         page.locator(f'#viewRoot [data-action="select-task"][data-id="meal-{suffix}/wait"]').click()
         page.locator('[data-action="complete-task"]').click()
+        if suffix=='a':
+            assert page.locator('.timeline-step[data-id="meal-a/wait"]').get_attribute('data-state')=='completed'
+            assert page.locator('.timeline-step').evaluate_all('(nodes)=>nodes.map(e=>e.dataset.id)')==timeline_order
+            assert page.locator('.timeline-step[data-id="meal-b/wait"]').get_attribute('data-state')=='elapsed'
         page.locator('[data-action="start-task"]').click()
         page.locator('[data-action="complete-task"]').click()
     page.wait_for_function('document.body.dataset.view==="finish"')
@@ -177,6 +218,7 @@ with sync_playwright() as p:
     assert '5 Hauptbehälter' in page.locator('#viewRoot').inner_text()
     assert 'Keine geprüfte Kühlschrankdauer' in page.locator('#viewRoot').inner_text()
     ok('Full task flow finishes explicitly and calculates boxes and measured portion weights')
+    ok('Parallel timeline timers pulse independently; acknowledgement stays distinct from completed steps and order stays stable')
     goto(page, 'overview')
     page.locator('details.tools').evaluate('(d)=>d.open=true')
     with page.expect_download() as download: page.locator('[data-action="export"]').click()
@@ -230,11 +272,38 @@ with sync_playwright() as p:
     page.wait_for_function('(id)=>JSON.parse(localStorage.getItem("chef.workspace.v2")).current.session.tasks[id]?.status==="running"',arg=first)
     assert not page.locator('#confirmDialog').is_visible()
     assert not snapshot(page)['current']['session']['timers']
+    assert page.locator('.timeline-step[data-state="running"]').count()==1
+    assert page.locator('.timeline-step[data-pulsing="true"]').count()==0
     page.reload(wait_until='networkidle')
     assert page.locator('[data-action="complete-task"]').is_enabled()
     assert snapshot(page)['current']['session']['tasks'][first]['status']=='running'
-    assert not page.locator('.big-timer').count()
+    assert not page.locator('[data-main-timer]').count()
     page.screenshot(path=str(OUT/'legacy-cooking-ipad.png'),full_page=True)
+    page.clock.install(time=datetime(2026,10,25,12,tzinfo=timezone.utc))
+    page.locator('[data-action="start-timer"]').click()
+    page.locator('#timerDialog').wait_for()
+    page.locator('#timerMinutes').fill('2');page.locator('#timerSeconds').fill('30')
+    page.locator('#timerForm button[type="submit"]').click()
+    page.locator('[data-action="pause-timer"]').wait_for()
+    assert snapshot(page)['current']['session']['timers'][first]['durationSeconds']==150
+    page.locator('[data-action="pause-timer"]').click()
+    page.locator('[data-action="resume-timer"]').wait_for()
+    remaining=snapshot(page)['current']['session']['timers'][first]['remainingMs']
+    frozen=page.locator('[data-main-timer]').inner_text()
+    page.clock.fast_forward(120000)
+    assert page.locator('[data-main-timer]').inner_text()==frozen
+    assert not page.locator('#alarmDialog').is_visible()
+    assert page.locator('.timeline-step[data-state="paused"]').count()==1
+    page.reload(wait_until='networkidle')
+    assert snapshot(page)['current']['session']['timers'][first]['remainingMs']==remaining
+    assert page.locator('[data-action="resume-timer"]').is_visible()
+    page.locator('[data-action="following-task"]').click()
+    assert snapshot(page)['current']['session']['tasks'][first]['status']=='running'
+    page.locator('[data-action="previous-task"]').click()
+    page.locator('[data-action="resume-timer"]').click()
+    page.locator('[data-action="pause-timer"]').wait_for()
+    assert page.locator('.timeline-step[data-pulsing="true"]').count()==1
+    ok('Custom timers on untimed steps pause without expiring, survive reload, and resume after browsing')
     page.locator('[data-action="complete-task"]').click()
     page.wait_for_function('(id)=>JSON.parse(localStorage.getItem("chef.workspace.v2")).current.session.tasks[id]?.status==="completed"',arg=first)
     assert snapshot(page)['current']['document']==original
@@ -254,7 +323,7 @@ with sync_playwright() as p:
     page.wait_for_function('JSON.parse(localStorage.getItem("chef.workspace.v2")).current.document.recipes[0].tasks[0].duration?.seconds===60')
     page.locator('.summary [data-route="cook"]').click()
     page.wait_for_function('document.body.dataset.view==="cook"')
-    page.locator('[data-action="start-task"]').click()
+    page.locator('[data-action="start-timer"]').click()
     page.locator('.timer-chip').wait_for()
     assert not page.locator('#confirmDialog').is_visible()
     ok('Missing passive time leads straight to an editable field and starts a real timer after correction')
@@ -288,18 +357,20 @@ with sync_playwright() as p:
     goto(page,'cook')
     assert not page.locator('#cookStepsDialog').is_visible()
     assert not page.locator('#viewRoot .task-item').count()
-    page.locator('[data-action="start-task"]').click()
+    page.locator('[data-action="start-timer"]').click()
+    page.locator('[data-action="pause-timer"]').wait_for()
     step_body=page.locator('.cook-step-body')
     step_body.evaluate('(e)=>e.scrollTop=200')
     before_scroll=step_body.evaluate('(e)=>e.scrollTop')
     assert before_scroll>0
-    page.locator('[data-action="adjust-timer"][data-seconds="60"]').click()
+    page.locator('[data-action="pause-timer"]').click()
     page.wait_for_timeout(100)
     assert abs(step_body.evaluate('(e)=>e.scrollTop')-before_scroll)<2
     assert page.evaluate('window.scrollY')==0
     primary=page.locator('.cook-primary').bounding_box()
     assert primary['y']>=0 and primary['y']+primary['height']<=568
     ok('Long instructions scroll independently; timer changes preserve reading position and the main action stays visible')
+    page.locator('[data-action="resume-timer"]').click()
     page.locator('[data-action="cook-steps"]').click()
     assert page.locator('#cookStepsContent .task-item').count()==4
     page.locator('#cookStepsContent [data-id="meal-b/wait"]').click()
@@ -330,7 +401,7 @@ with sync_playwright() as p:
             results['layouts'].append({'viewport':name,'route':route,**geometry})
         if name=='ipad-landscape':
             goto(page,'overview');page.evaluate('window.scrollTo(0,0)');page.screenshot(path=str(OUT/'overview-ipad.png'),full_page=True)
-            goto(page,'cook');page.locator('[data-action="start-task"]').click();page.screenshot(path=str(OUT/'cooking-focus-ipad.png'))
+            goto(page,'cook');page.locator('[data-action="start-timer"]').click();page.screenshot(path=str(OUT/'cooking-focus-ipad.png'))
         context.close()
     ok('Five mobile/tablet viewport sizes: five views fit and buttons have at least 44px targets')
     for profile,agent,platform in [
@@ -348,7 +419,7 @@ with sync_playwright() as p:
                 reachable:links.every(e=>{const r=e.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('a')===e;})};
             }''')
             assert geometry['top']>=64 and geometry['reachable'],(profile,route,geometry)
-        page.locator('[data-action="start-task"]').click()
+        page.locator('[data-action="start-timer"]').click()
         for width,height in [(1280,882),(768,1024),(844,390)]:
             page.set_viewport_size({'width':width,'height':height})
             page.mouse.move(30,80);page.mouse.wheel(0,-500)

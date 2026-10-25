@@ -1,5 +1,6 @@
 import { importMenu, validateDocument } from '../data/validate.js';
 import { newSession, hasProgress } from './state.js';
+import { validTimer } from './timers.js';
 
 export const STORAGE_KEY = 'chef.workspace.v2';
 export function snapshot(document) {
@@ -16,7 +17,7 @@ export function inspectBackup(backup) {
     const object = value => !!value && typeof value === 'object' && !Array.isArray(value);
     if (!session || !object(session.tasks) || !object(session.timers) || !object(session.bindings) || !object(session.packing) || !object(session.legacyTimers) || !Array.isArray(session.events) || !object(current.checks) || typeof session.note !== 'string') throw new Error('Fortschritt oder Checklisten der Sicherung sind unvollständig.');
     for (const key of ['bought', 'pantry', 'ready', 'equipment']) if (!current.checks[key] || typeof current.checks[key] !== 'object') throw new Error('Eine Checkliste der Sicherung fehlt.');
-    for (const timer of [...Object.values(session.timers), ...Object.values(session.legacyTimers || {})]) if (!timer || !Number.isFinite(timer.endsAt) || !Number.isFinite(timer.durationSeconds) || !['running', 'elapsed', 'acknowledged', 'cancelled'].includes(timer.state)) throw new Error('Ein Timer der Sicherung ist ungültig.');
+    for (const timer of [...Object.values(session.timers), ...Object.values(session.legacyTimers || {})]) if (!validTimer(timer)) throw new Error('Ein Timer der Sicherung ist ungültig.');
     for (const record of Object.values(session.tasks)) if (!record || !['running', 'elapsed', 'completed', 'skipped', 'pending'].includes(record.status)) throw new Error('Ein Schrittzustand der Sicherung ist ungültig.');
     for (const allocations of Object.values(session.bindings)) if (!Array.isArray(allocations) || allocations.some(a => {
       if (!a || typeof a.resourceId !== 'string' || !Number.isInteger(a.units) || a.units < 1) return true;
@@ -47,7 +48,7 @@ export function createStore(storage) {
         const s = parsed.current.session;
         if (!s || typeof s.tasks !== 'object' || typeof s.timers !== 'object' || typeof s.bindings !== 'object' || !Array.isArray(s.events)) throw new Error('Gespeicherter Kochfortschritt ist beschädigt.');
         s.legacyTimers ||= {}; s.packing ||= {};
-        for (const timer of [...Object.values(s.timers), ...Object.values(s.legacyTimers)]) if (!Number.isFinite(timer.endsAt) || !Number.isFinite(timer.durationSeconds)) throw new Error('Ein gespeicherter Timer ist beschädigt.');
+        for (const timer of [...Object.values(s.timers), ...Object.values(s.legacyTimers)]) if (!validTimer(timer)) throw new Error('Ein gespeicherter Timer ist beschädigt.');
       }
       state = parsed;
     } else {
