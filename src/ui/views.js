@@ -1,5 +1,5 @@
 import { formatQuantity, number, shoppingList } from '../data/units.js';
-import { readiness } from '../planning/scheduler.js';
+import { readiness, canWaitForTimer } from '../planning/scheduler.js';
 import { hasProgress, isComplete } from '../session/state.js';
 import { timerRemainingMs } from '../session/timers.js';
 
@@ -102,9 +102,15 @@ export function cookView(current, graph, forecast, selectedTaskId, voice, valida
   const running = record && ['running', 'elapsed'].includes(record.status);
   const done = completedCount(graph, session);
   const names = task.recipeNames.join(' + ');
-  const waiting = running && timer && ['running', 'paused'].includes(timer.state) && timerRemainingMs(timer) > 0;
+  const liveTimer = running && timer && ['running', 'paused'].includes(timer.state) && timerRemainingMs(timer) > 0;
+  // "Weiterkochen" only when leaving the step is actually possible: a passive
+  // timer runs unattended, and an active step can be left only when its hands-on
+  // attention can be released. Raw-meat prep locks the board and hands until the
+  // cleaning step, so there finishing the step is the real next move — offering
+  // "Weiterkochen" there just dead-ends on "no step available".
+  const canLeave = liveTimer && (task.mode !== 'active' || canWaitForTimer(graph, session, task.id));
   let controls;
-  if (waiting) controls = action('continue-cooking', 'Weiterkochen →', `data-id="${esc(task.id)}" aria-label="Weiterkochen, ohne diesen Schritt abzuschließen. Timer läuft weiter."`, 'primary cook-primary');
+  if (canLeave) controls = action('continue-cooking', 'Weiterkochen →', `data-id="${esc(task.id)}" aria-label="Weiterkochen, ohne diesen Schritt abzuschließen. Timer läuft weiter."`, 'primary cook-primary');
   else if (running) controls = action('complete-task', task.mode === 'passive' ? 'Geprüft & weiter ✓' : 'Erledigt & weiter ✓', `data-id="${esc(task.id)}"`, 'primary cook-primary');
   else if (completed) controls = action('next-ready', 'Nächster Schritt →', '', 'primary cook-primary');
   else if (skipped) controls = action('restore-task', 'Schritt wieder öffnen', `data-id="${esc(task.id)}"`, 'primary cook-primary');
@@ -113,7 +119,7 @@ export function cookView(current, graph, forecast, selectedTaskId, voice, valida
   const ids = taskOrder?.length ? taskOrder : graph.tasks.map(t => t.id), index = ids.indexOf(task.id);
   const timerAction = timer?.state === 'running' ? 'pause-timer' : timer?.state === 'paused' ? 'resume-timer' : timer ? 'timer-settings' : 'start-timer';
   const timerLabel = timer?.state === 'running' ? 'Pausieren' : timer?.state === 'paused' ? 'Fortsetzen' : timer ? 'Neu starten' : 'Timer starten';
-  const timerControls = !completed && !skipped ? `<div class="timer-controls"><output class="big-timer mono" ${timer ? `data-main-timer="${esc(task.id)}"` : ''} aria-label="${timer ? 'Restzeit' : 'Timerdauer'}">${timer ? countdown(timerRemainingMs(timer) / 1000) : task.untimed ? '–:–' : countdown(task.durationSeconds)}</output>${action(timerAction, timerLabel, `data-id="${esc(task.id)}" ${!running && !available.ready ? 'disabled' : ''}`)}${waiting ? action('complete-task', 'Abschließen ✓', `data-id="${esc(task.id)}" aria-label="Diesen Schritt abschließen und seinen Timer beenden"`, 'cook-finish') : action('timer-settings', 'Dauer', `data-id="${esc(task.id)}" aria-label="Eigene Timerdauer einstellen" ${!running && !available.ready ? 'disabled' : ''}`)}</div>` : '';
+  const timerControls = !completed && !skipped ? `<div class="timer-controls"><output class="big-timer mono" ${timer ? `data-main-timer="${esc(task.id)}"` : ''} aria-label="${timer ? 'Restzeit' : 'Timerdauer'}">${timer ? countdown(timerRemainingMs(timer) / 1000) : task.untimed ? '–:–' : countdown(task.durationSeconds)}</output>${action(timerAction, timerLabel, `data-id="${esc(task.id)}" ${!running && !available.ready ? 'disabled' : ''}`)}${canLeave ? action('complete-task', 'Abschließen ✓', `data-id="${esc(task.id)}" aria-label="Diesen Schritt abschließen und seinen Timer beenden"`, 'cook-finish') : action('timer-settings', 'Dauer', `data-id="${esc(task.id)}" aria-label="Eigene Timerdauer einstellen" ${!running && !available.ready ? 'disabled' : ''}`)}</div>` : '';
 
   return `<section class="cook-workspace" aria-label="Kochmodus">
     <div class="cook-overview"><div class="cook-toolbar"><div class="cook-progress"><strong>${done} / ${graph.tasks.length} erledigt</strong><span class="muted" data-live-eta>${remainingTimeText(forecast, session)}</span></div>
@@ -130,7 +136,7 @@ export function cookView(current, graph, forecast, selectedTaskId, voice, valida
           ${task.sourceText ? '<p>Verwende die angezeigten Zutatenmengen für deine Portionen. Mengen im Originaltext beziehen sich auf die Rezeptbasis.</p>' : ''}
           ${running && timer ? `<p>${task.mode === 'passive' ? 'Der Timer erinnert ans Prüfen. Erst nach tatsächlichem Abschluss bestätigen.' : 'Der Timer ist eine Orientierung. Die Handarbeit endet mit deiner Bestätigung.'}</p>` : ''}
           <div class="actions">${!running && !completed && !skipped ? action('skip-task', 'Für später markieren', `data-id="${esc(task.id)}"`, 'ghost') : ''}${voice ? action('voice', 'Sprachbefehl', `data-id="${esc(task.id)}"`) : ''}${link('finish', 'Abschluss prüfen')}</div>
-          ${timer && !completed ? `<div class="actions spaced">${waiting ? action('timer-settings', 'Timerdauer ändern', `data-id="${esc(task.id)}"`) : ''}${action('adjust-timer', '−1 Min.', `data-id="${esc(task.id)}" data-seconds="-60"`)}${action('adjust-timer', '+1 Min.', `data-id="${esc(task.id)}" data-seconds="60"`)}</div>` : ''}
+          ${timer && !completed ? `<div class="actions spaced">${liveTimer ? action('timer-settings', 'Timerdauer ändern', `data-id="${esc(task.id)}"`) : ''}${action('adjust-timer', '−1 Min.', `data-id="${esc(task.id)}" data-seconds="-60"`)}${action('adjust-timer', '+1 Min.', `data-id="${esc(task.id)}" data-seconds="60"`)}</div>` : ''}
           ${voice ? '<p>Sprachbefehle: „wiederholen“, „erledigt“, „weiter“, „eine Minute mehr“. Das Mikrofon wird per Tastendruck aktiviert. Der Browser kann Audio an seinen Spracherkennungsdienst senden.</p>' : ''}
           <details data-detail-key="ingredients:${esc(task.id)}"><summary>Alle Zutaten nachsehen</summary>${shoppingList(current.document).map(i => `<p>${esc(formatQuantity(i.quantity))} ${esc(i.name)}</p>`).join('')}</details>
           <label class="field spaced">Notiz zum Kochabend<textarea id="cookNote" data-session-note rows="2" maxlength="2000">${esc(session.note)}</textarea></label>
